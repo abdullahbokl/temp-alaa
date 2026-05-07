@@ -1,46 +1,128 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
+# -----------------------------------------------------------------------------
+# FLUTTER & DART
+# -----------------------------------------------------------------------------
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+doc/api/
+ios/Flutter/.last_build_id
 
-# IntelliJ related
+# Dependency lock files (User Preference)
+pubspec.lock
+
+# -----------------------------------------------------------------------------
+# ANDROID
+# -----------------------------------------------------------------------------
+/android/app/debug
+/android/app/profile
+/android/app/release
+/android/local.properties
+/android/key.properties
+/android/app/src/main/res/raw/google_services.json
+*.keystore
+*.jks
+.gradle/
+captures/
+gen/
+
+# -----------------------------------------------------------------------------
+# IOS
+# -----------------------------------------------------------------------------
+ios/.pvc/
+ios/Pods/
+ios/Runner/GeneratedPluginRegistrant.h
+ios/Runner/GeneratedPluginRegistrant.m
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/App.framework
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+DerivedData/
+*.moved-aside
+*.pbxuser
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+!default.pbxuser
+!default.mode1v3
+!default.mode2v3
+!default.perspectivev3
+
+# -----------------------------------------------------------------------------
+# DESKTOP PLATFORMS
+# -----------------------------------------------------------------------------
+# Linux
+linux/flutter/ephemeral/
+# macOS
+macos/Flutter/ephemeral/
+macos/Pods/
+# Windows
+windows/flutter/ephemeral/
+
+# -----------------------------------------------------------------------------
+# IDE & TOOLS
+# -----------------------------------------------------------------------------
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
+
+# IntelliJ / Android Studio
 *.iml
 *.ipr
 *.iws
 .idea/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/libraries/
+.idea/caches/
 
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
+# -----------------------------------------------------------------------------
+# OS SPECIFIC
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+Network Trash Folder
+Temporary Items
+.apdisk
 
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
 
-# Symbolication related
-app.*.symbols
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
 
-# Obfuscation related
-app.*.map.json
+# -----------------------------------------------------------------------------
+# MISCELLANEOUS
+# -----------------------------------------------------------------------------
+*.log
+*.bak
+*.swp
+*.tmp
+.env
+.env.*
+!.env.example
+node_modules/
 
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-/docs/
+# -----------------------------------------------------------------------------
+# CODEGRAPH
+# -----------------------------------------------------------------------------
+.codegraph/*.db
+.codegraph/*.db-wal
+.codegraph/*.db-shm
+.codegraph/*.lock

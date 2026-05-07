@@ -15,7 +15,7 @@ import '../../../authentication/domain/repositories/auth_repository.dart';
 import '../../../authentication/presentation/bloc/auth_bloc.dart';
 import '../../../authentication/presentation/bloc/auth_event.dart';
 import '../../../authentication/presentation/bloc/auth_state.dart';
-import '../../../authentication/presentation/widgets/PasswordField.dart';
+import '../../../authentication/presentation/widgets/passwordField.dart';
 import '../../../authentication/presentation/widgets/name_field.dart';
 import '../../../authentication/presentation/widgets/phone_field.dart';
 import '../../../authentication/presentation/widgets/birthday_field.dart';

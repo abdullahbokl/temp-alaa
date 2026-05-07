@@ -9,7 +9,7 @@ import '../../../../../core/utils/responsive.dart';
 import '../../bloc/auth_bloc.dart';
 import '../../bloc/auth_event.dart';
 import '../../bloc/auth_state.dart';
-import '../../widgets/PasswordField.dart';
+import '../../widgets/passwordField.dart';
 import '../../widgets/primary_button.dart';
 import '../login/widgets/login_background.dart';
 
