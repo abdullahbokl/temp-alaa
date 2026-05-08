@@ -19,7 +19,6 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<StopRealtimeUpdatesEvent>(_onStopRealtimeUpdates);
     on<RealtimeHomeDataUpdateEvent>(_onRealtimeHomeDataUpdate);
 
-    add(StartRealtimeUpdatesEvent());
   }
   
   Future<void> _onStartRealtimeUpdates(
@@ -109,6 +108,5 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     );
   }
 }
-
 
 

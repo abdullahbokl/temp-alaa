@@ -32,8 +32,6 @@ class SingleCategoryPage extends StatefulWidget {
 class _SingleCategoryPageState extends State<SingleCategoryPage> {
   late final CoursesBloc _coursesBloc;
   final ScrollController _scrollController = ScrollController();
-  int _visibleItemCount = 20;
-  static const int _pageSize = 20;
 
   @override
   void initState() {
@@ -44,7 +42,6 @@ class _SingleCategoryPageState extends State<SingleCategoryPage> {
       _coursesBloc.add(
         LoadCoursesEvent(
           categoryId: widget.category.id,
-          perPage: 50,
           refresh: true,
         ),
       );
@@ -66,9 +63,7 @@ class _SingleCategoryPageState extends State<SingleCategoryPage> {
     if (maxScroll <= 0) return;
 
     if (currentScroll >= maxScroll * 0.8) {
-      setState(() {
-        _visibleItemCount += _pageSize;
-      });
+      _coursesBloc.add(const LoadMoreCoursesEvent());
     }
   }
 
@@ -84,13 +79,13 @@ class _SingleCategoryPageState extends State<SingleCategoryPage> {
             const CustomBackground(),
             BlocBuilder<CoursesBloc, CoursesState>(
             builder: (context, state) {
-              if (state is CoursesLoading) {
+              if (state.isInitialLoading && state.items.isEmpty) {
                 return const Center(
                   child: CircularProgressIndicator(color: AppColors.primary),
                 );
               }
-              
-              if (state is CoursesError) {
+
+              if (state.items.isEmpty && state.errorMessage != null) {
                 return Center(
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
@@ -102,7 +97,7 @@ class _SingleCategoryPageState extends State<SingleCategoryPage> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        state.message,
+                        state.errorMessage!,
                         style: TextStyle(
                           fontFamily: 'Cairo',
                           fontSize: 16,
@@ -116,7 +111,6 @@ class _SingleCategoryPageState extends State<SingleCategoryPage> {
                           context.read<CoursesBloc>().add(
                             LoadCoursesEvent(
                               categoryId: widget.category.id,
-                              perPage: 50,
                               refresh: true,
                             ),
                           );
@@ -128,11 +122,9 @@ class _SingleCategoryPageState extends State<SingleCategoryPage> {
                 );
               }
               
-              final courses = state is CoursesLoaded 
-                  ? state.courses 
-                  : (state is CoursesEmpty 
-                      ? <Course>[] 
-                      : (widget.initialCourses ?? <Course>[]));
+              final courses = state.items.isNotEmpty
+                  ? state.items
+                  : (widget.initialCourses ?? <Course>[]);
               
               if (courses.isEmpty) {
                 return _buildEmptyState();
@@ -174,7 +166,6 @@ class _SingleCategoryPageState extends State<SingleCategoryPage> {
 
   Widget _buildCoursesGrid(BuildContext context, List<Course> courses) {
     final reversedCourses = courses.reversed.toList();
-    final itemCount = _visibleItemCount.clamp(0, reversedCourses.length);
     return GridView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.all(24),
@@ -184,7 +175,7 @@ class _SingleCategoryPageState extends State<SingleCategoryPage> {
         crossAxisSpacing: 20,
         mainAxisSpacing: 24,
       ),
-      itemCount: itemCount,
+      itemCount: reversedCourses.length,
       itemBuilder: (context, index) {
         final course = reversedCourses[index];
         return _CourseGridItem(

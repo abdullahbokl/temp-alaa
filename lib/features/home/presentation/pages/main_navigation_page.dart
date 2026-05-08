@@ -48,6 +48,7 @@ class MainNavigationPageState extends State<MainNavigationPage> {
   int _selectedIndex = 0;
   final List<int> _tabHistory = [];
   late final TabIndexNotifier _tabIndexNotifier;
+  final Set<int> _initializedTabs = {0};
 
   final List<GlobalKey<NavigatorState>> _navigatorKeys = [
     GlobalKey<NavigatorState>(),
@@ -151,20 +152,18 @@ class MainNavigationPageState extends State<MainNavigationPage> {
             SystemNavigator.pop();
           },
           child: Scaffold(
-            body: IndexedStack(
-              index: _selectedIndex,
-              children: [
-                _buildNavigator(
-                  0,
-                  BlocProvider(
-                    create: (_) => sl<HomeBloc>()..add(LoadHomeDataEvent()),
-                    child: const HomeTab(),
-                  ),
-                ),
-                _buildNavigator(1, const ShortsPage()),
-                _buildNavigator(2, const SubscriptionsPage(showBackButton: false)),
-                _buildNavigator(3, const MenuPage()),
-              ],
+            body: Stack(
+              children: List.generate(4, (index) {
+                final isActive = _selectedIndex == index;
+                if (!_initializedTabs.contains(index) && !isActive) {
+                  return const SizedBox.shrink();
+                }
+                _initializedTabs.add(index);
+                return Offstage(
+                  offstage: !isActive,
+                  child: _buildNavigator(index, _buildTab(index)),
+                );
+              }),
             ),
             bottomNavigationBar: _showBottomNav 
                 ? _buildBottomNavigationBar()
@@ -185,6 +184,24 @@ class MainNavigationPageState extends State<MainNavigationPage> {
         );
       },
     );
+  }
+
+  Widget _buildTab(int index) {
+    switch (index) {
+      case 0:
+        return BlocProvider(
+          create: (_) => sl<HomeBloc>()..add(LoadHomeDataEvent()),
+          child: const HomeTab(),
+        );
+      case 1:
+        return const ShortsPage();
+      case 2:
+        return const SubscriptionsPage(showBackButton: false);
+      case 3:
+        return const MenuPage();
+      default:
+        return const SizedBox.shrink();
+    }
   }
 
   Widget _buildBottomNavigationBar() {
@@ -296,7 +313,6 @@ extension MainNavigationContext on BuildContext {
     mainNavigation?.pushPage(page);
   }
 }
-
 
 
 

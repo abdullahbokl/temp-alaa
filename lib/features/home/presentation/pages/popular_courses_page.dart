@@ -21,36 +21,6 @@ class PopularCoursesPage extends StatefulWidget {
 }
 
 class _PopularCoursesPageState extends State<PopularCoursesPage> {
-  final ScrollController _scrollController = ScrollController();
-  int _visibleItemCount = 20;
-  static const int _pageSize = 20;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_scrollController.hasClients) return;
-    final maxScroll = _scrollController.position.maxScrollExtent;
-    final currentScroll = _scrollController.position.pixels;
-    if (maxScroll <= 0) return;
-
-    if (currentScroll >= maxScroll * 0.8) {
-      setState(() {
-        _visibleItemCount += _pageSize;
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -70,11 +40,7 @@ class _PopularCoursesPageState extends State<PopularCoursesPage> {
       return _buildEmptyState();
     }
 
-    final itemCount =
-        _visibleItemCount.clamp(0, widget.initialCourses.length);
-
     return GridView.builder(
-      controller: _scrollController,
       padding: const EdgeInsets.all(24),
       gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: 2,
@@ -82,7 +48,7 @@ class _PopularCoursesPageState extends State<PopularCoursesPage> {
         crossAxisSpacing: 20,
         mainAxisSpacing: 24,
       ),
-      itemCount: itemCount,
+      itemCount: widget.initialCourses.length,
       itemBuilder: (context, index) {
         final course = widget.initialCourses[index];
         return _CourseGridItem(

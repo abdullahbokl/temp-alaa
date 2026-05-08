@@ -40,7 +40,12 @@ class LoadCourseByIdEvent extends CoursesEvent {
 }
 
 class LoadMyCoursesEvent extends CoursesEvent {
-  const LoadMyCoursesEvent();
+  final bool refresh;
+
+  const LoadMyCoursesEvent({this.refresh = false});
+
+  @override
+  List<Object?> get props => [refresh];
 }
 
 class FilterByCategoryEvent extends CoursesEvent {
@@ -68,7 +73,6 @@ class ClearFiltersEvent extends CoursesEvent {
 class ClearCoursesStateEvent extends CoursesEvent {
   const ClearCoursesStateEvent();
 }
-
 
 
 

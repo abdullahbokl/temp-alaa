@@ -1,6 +1,8 @@
 import 'package:dartz/dartz.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/error/failures.dart';
+import '../../../../core/pagination/paginated_list.dart';
+import '../../../../core/pagination/pagination_params.dart';
 import '../../../home/domain/entities/course.dart';
 import '../../domain/repositories/course_repository.dart';
 import '../datasources/course_remote_datasource.dart';
@@ -13,16 +15,14 @@ class CourseRepositoryImpl implements CourseRepository {
   });
 
   @override
-  Future<Either<Failure, List<Course>>> getCourses({
-    int? page,
-    int? perPage,
+  Future<Either<Failure, PaginatedList<Course>>> getCourses({
+    required PaginationParams pagination,
     int? categoryId,
     int? specialtyId,
   }) async {
     try {
       final courses = await remoteDataSource.getCourses(
-        page: page,
-        perPage: perPage,
+        pagination: pagination,
         categoryId: categoryId,
         specialtyId: specialtyId,
       );
@@ -58,7 +58,6 @@ class CourseRepositoryImpl implements CourseRepository {
     }
   }
 }
-
 
 
 

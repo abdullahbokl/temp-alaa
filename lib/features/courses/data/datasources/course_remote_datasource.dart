@@ -3,6 +3,10 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/request_auth.dart';
+import '../../../../core/pagination/paginated_list.dart';
+import '../../../../core/pagination/pagination_params.dart';
+import '../../../../core/pagination/pagination_parser.dart';
 import '../../../home/data/models/course_model.dart';
 
 List<CourseModel> parseCoursesListInIsolate(List<dynamic> jsonList) {
@@ -10,9 +14,8 @@ List<CourseModel> parseCoursesListInIsolate(List<dynamic> jsonList) {
 }
 
 abstract class CourseRemoteDataSource {
-  Future<List<CourseModel>> getCourses({
-    int? page,
-    int? perPage,
+  Future<PaginatedList<CourseModel>> getCourses({
+    required PaginationParams pagination,
     int? categoryId,
     int? specialtyId,
   });
@@ -28,16 +31,13 @@ class CourseRemoteDataSourceImpl implements CourseRemoteDataSource {
   CourseRemoteDataSourceImpl(this.dioClient);
 
   @override
-  Future<List<CourseModel>> getCourses({
-    int? page,
-    int? perPage,
+  Future<PaginatedList<CourseModel>> getCourses({
+    required PaginationParams pagination,
     int? categoryId,
     int? specialtyId,
   }) async {
     try {
-      final queryParams = <String, dynamic>{};
-      if (page != null) queryParams['page'] = page;
-      if (perPage != null) queryParams['per_page'] = perPage;
+      final queryParams = <String, dynamic>{...pagination.toPerPageMap()};
 
       final searchParts = <String>[];
       if (categoryId != null) {
@@ -54,27 +54,20 @@ class CourseRemoteDataSourceImpl implements CourseRemoteDataSource {
       final response = await dioClient.get(
         ApiConstants.courses,
         queryParameters: queryParams.isNotEmpty ? queryParams : null,
-        cancelTag: 'courses_${categoryId}_${specialtyId}_$page',
+        cancelTag: 'courses_${categoryId}_${specialtyId}_${pagination.page}',
+        auth: AuthRequirement.optional,
       );
 
       if (response.statusCode == 200) {
-        List<dynamic> coursesJson;
-        final responseData = response.data;
-
-        if (responseData['data'] is Map && responseData['data']['data'] is List) {
-          coursesJson = responseData['data']['data'];
-        } else if (responseData['data'] is List) {
-          coursesJson = responseData['data'];
-        } else if (responseData['courses'] is List) {
-          coursesJson = responseData['courses'];
-        } else if (responseData is List) {
-          coursesJson = responseData;
-        } else {
-          coursesJson = [];
-        }
-
-        if (coursesJson.isEmpty) return <CourseModel>[];
-        return compute(parseCoursesListInIsolate, coursesJson);
+        return PaginationParser.parse<CourseModel>(
+          responseData: response.data,
+          requestedPage: pagination.page,
+          requestedLimit: pagination.limit,
+          mapItems: (rawItems) {
+            if (rawItems.isEmpty) return <CourseModel>[];
+            return parseCoursesListInIsolate(rawItems);
+          },
+        );
       }
 
       throw ServerException(
@@ -89,7 +82,10 @@ class CourseRemoteDataSourceImpl implements CourseRemoteDataSource {
   @override
   Future<CourseModel> getCourseById(int id) async {
     try {
-      final response = await dioClient.get('${ApiConstants.courses}/$id');
+      final response = await dioClient.get(
+        '${ApiConstants.courses}/$id',
+        auth: AuthRequirement.optional,
+      );
 
       if (response.statusCode == 200) {
         final responseData = response.data;
@@ -120,7 +116,10 @@ class CourseRemoteDataSourceImpl implements CourseRemoteDataSource {
   @override
   Future<List<CourseModel>> getMyCourses() async {
     try {
-      final response = await dioClient.get(ApiConstants.myCourses);
+      final response = await dioClient.get(
+        ApiConstants.myCourses,
+        auth: AuthRequirement.protected,
+      );
 
       if (response.statusCode == 200) {
         List<dynamic> coursesJson;
@@ -170,7 +169,5 @@ class CourseRemoteDataSourceImpl implements CourseRemoteDataSource {
     );
   }
 }
-
-
 
 

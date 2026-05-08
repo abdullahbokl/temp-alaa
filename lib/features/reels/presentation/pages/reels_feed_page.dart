@@ -105,8 +105,6 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
 
     if (widget.initialReel != null) {
       context.read<ReelsBloc>().add(SeedSingleReelEvent(reel: widget.initialReel!));
-    } else if (!widget.hideCategoryFilters) {
-      context.read<ReelsBloc>().add(const LoadReelCategoriesEvent());
     }
 
     if (widget.isTabActive) {
@@ -156,6 +154,7 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
         _setDarkStatusBar();
         if (widget.initialReel == null &&
             !widget.hideCategoryFilters &&
+            _isAuthenticated &&
             mounted) {
           _shouldResetOnNextLoad = true;
           
@@ -288,6 +287,10 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
       _isAuthenticated = token != null && token.isNotEmpty;
       _isCheckingAuth = false;
     });
+
+    if (_isAuthenticated && widget.initialReel == null && !widget.hideCategoryFilters && mounted) {
+      context.read<ReelsBloc>().add(const LoadReelCategoriesEvent());
+    }
   }
 
   Future<void> _checkSubscriptionStatus() async {

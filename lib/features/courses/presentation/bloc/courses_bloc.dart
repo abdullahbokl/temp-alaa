@@ -1,9 +1,11 @@
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:async';
-import 'package:flutter/foundation.dart';
-import '../../../../core/utils/debouncer.dart';
+
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import '../../../../core/events/global_event_bus.dart';
 import '../../../../core/events/subscription_updated_event.dart';
+import '../../../../core/pagination/pagination_params.dart';
+import '../../../../core/utils/debouncer.dart';
 import '../../domain/usecases/get_course_by_id_usecase.dart';
 import '../../domain/usecases/get_courses_usecase.dart';
 import '../../domain/usecases/get_my_courses_usecase.dart';
@@ -16,11 +18,7 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
   final GetMyCoursesUseCase getMyCoursesUseCase;
   final GlobalEventBus globalEventBus;
 
-  int? _currentCategoryId;
-  int? _currentSpecialtyId;
-  int _currentPage = 1;
   static const int _perPage = 10;
-
   final Debouncer _filterDebouncer = Debouncer(delay: const Duration(milliseconds: 300));
   StreamSubscription<SubscriptionUpdatedEvent>? _subscriptionUpdatedListener;
 
@@ -29,7 +27,7 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     required this.getCourseByIdUseCase,
     required this.getMyCoursesUseCase,
     required this.globalEventBus,
-  }) : super(CoursesInitial()) {
+  }) : super(const CoursesState()) {
     on<LoadCoursesEvent>(_onLoadCourses);
     on<LoadMoreCoursesEvent>(_onLoadMoreCourses);
     on<LoadCourseByIdEvent>(_onLoadCourseById);
@@ -39,12 +37,9 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     on<ClearFiltersEvent>(_onClearFilters);
     on<ClearCoursesStateEvent>(_onClearState);
 
-    _subscriptionUpdatedListener = globalEventBus
-        .on<SubscriptionUpdatedEvent>()
-        .listen((_) {
-      _currentPage = 1;
-      debugPrint('🔥 SubscriptionUpdatedEvent received in CoursesBloc');
-      add(const LoadCoursesEvent(page: 1, refresh: true));
+    _subscriptionUpdatedListener = globalEventBus.on<SubscriptionUpdatedEvent>().listen((_) {
+      if (!state.isMyCoursesMode) return;
+      add(const LoadMyCoursesEvent(refresh: true));
     });
   }
 
@@ -52,36 +47,54 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     LoadCoursesEvent event,
     Emitter<CoursesState> emit,
   ) async {
-    if (event.refresh) {
-      _currentPage = 1;
-    }
+    final targetCategory = event.categoryId ?? state.categoryId;
+    final targetSpecialty = event.specialtyId ?? state.specialtyId;
+    final nextPage = event.page ?? 1;
 
-    if (event.categoryId != null) _currentCategoryId = event.categoryId;
-    if (event.specialtyId != null) _currentSpecialtyId = event.specialtyId;
+    final shouldRefresh = event.refresh;
+    final isInitial = state.items.isEmpty || shouldRefresh && !state.isRefreshing;
 
-    emit(CoursesLoading());
+    emit(
+      state.copyWith(
+        isInitialLoading: isInitial && !shouldRefresh,
+        isRefreshing: shouldRefresh,
+        isLoadingMore: false,
+        currentPage: nextPage,
+        categoryId: targetCategory,
+        specialtyId: targetSpecialty,
+        isMyCoursesMode: false,
+        clearError: true,
+      ),
+    );
 
     final result = await getCoursesUseCase(
-      page: event.page ?? _currentPage,
-      perPage: event.perPage ?? _perPage,
-      categoryId: _currentCategoryId,
-      specialtyId: _currentSpecialtyId,
+      pagination: PaginationParams(page: nextPage, limit: event.perPage ?? _perPage),
+      categoryId: targetCategory,
+      specialtyId: targetSpecialty,
     );
 
     result.fold(
-      (failure) => emit(CoursesError(failure.message)),
-      (courses) {
-        if (courses.isEmpty) {
-          emit(CoursesEmpty());
-        } else {
-          emit(CoursesLoaded(
-            courses: courses,
-            categoryId: _currentCategoryId,
-            specialtyId: _currentSpecialtyId,
-            currentPage: _currentPage,
-            hasMorePages: courses.length >= _perPage,
-          ));
-        }
+      (failure) {
+        emit(
+          state.copyWith(
+            isInitialLoading: false,
+            isRefreshing: false,
+            errorMessage: failure.message,
+          ),
+        );
+      },
+      (pageData) {
+        emit(
+          state.copyWith(
+            items: pageData.items,
+            currentPage: pageData.page,
+            hasMore: pageData.hasMore,
+            isInitialLoading: false,
+            isRefreshing: false,
+            isLoadingMore: false,
+            clearError: true,
+          ),
+        );
       },
     );
   }
@@ -90,33 +103,33 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     LoadMoreCoursesEvent event,
     Emitter<CoursesState> emit,
   ) async {
-    final currentState = state;
-    if (currentState is! CoursesLoaded || 
-        currentState.isLoadingMore || 
-        !currentState.hasMorePages) {
+    if (state.isMyCoursesMode || state.isInitialLoading || state.isRefreshing || state.isLoadingMore || !state.hasMore) {
       return;
     }
 
-    emit(currentState.copyWith(isLoadingMore: true));
+    final nextPage = state.currentPage + 1;
+    emit(state.copyWith(isLoadingMore: true, clearError: true));
 
-    final nextPage = currentState.currentPage + 1;
     final result = await getCoursesUseCase(
-      page: nextPage,
-      perPage: _perPage,
-      categoryId: _currentCategoryId,
-      specialtyId: _currentSpecialtyId,
+      pagination: PaginationParams(page: nextPage, limit: _perPage),
+      categoryId: state.categoryId,
+      specialtyId: state.specialtyId,
     );
 
     result.fold(
-      (failure) => emit(currentState.copyWith(isLoadingMore: false)),
-      (newCourses) {
-        _currentPage = nextPage;
-        emit(currentState.copyWith(
-          courses: [...currentState.courses, ...newCourses],
-          currentPage: nextPage,
-          hasMorePages: newCourses.length >= _perPage,
-          isLoadingMore: false,
-        ));
+      (failure) {
+        emit(state.copyWith(isLoadingMore: false, errorMessage: failure.message));
+      },
+      (pageData) {
+        emit(
+          state.copyWith(
+            items: [...state.items, ...pageData.items],
+            currentPage: pageData.page,
+            hasMore: pageData.hasMore,
+            isLoadingMore: false,
+            clearError: true,
+          ),
+        );
       },
     );
   }
@@ -125,13 +138,10 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     LoadCourseByIdEvent event,
     Emitter<CoursesState> emit,
   ) async {
-    emit(CoursesLoading());
-
     final result = await getCourseByIdUseCase(id: event.id);
-
     result.fold(
-      (failure) => emit(CoursesError(failure.message)),
-      (course) => emit(CourseDetailsLoaded(course: course)),
+      (failure) => emit(state.copyWith(errorMessage: failure.message)),
+      (_) {},
     );
   }
 
@@ -139,22 +149,41 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     LoadMyCoursesEvent event,
     Emitter<CoursesState> emit,
   ) async {
-    emit(CoursesLoading());
+    final shouldRefresh = event.refresh;
+    emit(
+      state.copyWith(
+        isInitialLoading: state.items.isEmpty && !shouldRefresh,
+        isRefreshing: shouldRefresh,
+        isLoadingMore: false,
+        hasMore: false,
+        currentPage: 1,
+        isMyCoursesMode: true,
+        clearError: true,
+      ),
+    );
 
     final result = await getMyCoursesUseCase();
-
     result.fold(
-      (failure) => emit(CoursesError(failure.message)),
+      (failure) {
+        emit(
+          state.copyWith(
+            isInitialLoading: false,
+            isRefreshing: false,
+            errorMessage: failure.message,
+          ),
+        );
+      },
       (courses) {
-        if (courses.isEmpty) {
-          emit(CoursesEmpty());
-        } else {
-          emit(const CoursesLoaded(
-            courses: [],
-            hasMorePages: false,
-            currentPage: 1,
-          ).copyWith(courses: courses));
-        }
+        emit(
+          state.copyWith(
+            items: courses,
+            hasMore: false,
+            isInitialLoading: false,
+            isRefreshing: false,
+            isLoadingMore: false,
+            clearError: true,
+          ),
+        );
       },
     );
   }
@@ -163,11 +192,8 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     FilterByCategoryEvent event,
     Emitter<CoursesState> emit,
   ) async {
-    _currentCategoryId = event.categoryId;
-    _currentPage = 1;
-
     _filterDebouncer.call(() {
-      add(const LoadCoursesEvent(refresh: true));
+      add(LoadCoursesEvent(categoryId: event.categoryId, refresh: true));
     });
   }
 
@@ -175,42 +201,29 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     FilterBySpecialtyEvent event,
     Emitter<CoursesState> emit,
   ) async {
-    _currentSpecialtyId = event.specialtyId;
-    _currentPage = 1;
-
     _filterDebouncer.call(() {
-      add(const LoadCoursesEvent(refresh: true));
+      add(LoadCoursesEvent(specialtyId: event.specialtyId, refresh: true));
     });
-  }
-  
-  @override
-  Future<void> close() {
-    _subscriptionUpdatedListener?.cancel();
-    _filterDebouncer.dispose();
-    return super.close();
   }
 
   Future<void> _onClearFilters(
     ClearFiltersEvent event,
     Emitter<CoursesState> emit,
   ) async {
-    _currentCategoryId = null;
-    _currentSpecialtyId = null;
-    _currentPage = 1;
-    add(const LoadCoursesEvent(refresh: true));
+    add(const LoadCoursesEvent(categoryId: null, specialtyId: null, refresh: true));
   }
 
   void _onClearState(
     ClearCoursesStateEvent event,
     Emitter<CoursesState> emit,
   ) {
-    _currentCategoryId = null;
-    _currentSpecialtyId = null;
-    _currentPage = 1;
-    emit(CoursesInitial());
+    emit(const CoursesState());
+  }
+
+  @override
+  Future<void> close() {
+    _subscriptionUpdatedListener?.cancel();
+    _filterDebouncer.dispose();
+    return super.close();
   }
 }
-
-
-
-

@@ -2,10 +2,12 @@ import 'package:dio/dio.dart';
 import 'package:dio_cache_interceptor/dio_cache_interceptor.dart';
 import 'package:flutter/foundation.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
+
 import '../constants/api_constants.dart';
 import '../constants/app_constants.dart';
 import '../storage/secure_storage_service.dart';
 import 'cache_service.dart';
+import 'request_auth.dart';
 
 class DioClient {
   late final Dio _dio;
@@ -29,24 +31,24 @@ class DioClient {
       ),
     );
 
-    _dio.interceptors.add(_CacheUserInterceptor(_secureStorage));
+    _dio.interceptors.add(_AuthInterceptor(_secureStorage));
+    _dio.interceptors.add(_CacheUserInterceptor());
 
     final cacheOptions = CacheService.cacheOptions;
     if (cacheOptions != null) {
       _dio.interceptors.add(DioCacheInterceptor(options: cacheOptions));
     }
 
-    _dio.interceptors.add(_AuthInterceptor(_secureStorage));
-
     if (kDebugMode) {
       _dio.interceptors.add(
         PrettyDioLogger(
-          requestHeader: true,
-          requestBody: true,
-          responseBody: true,
+          requestHeader: false,
+          requestBody: false,
+          responseBody: false,
           responseHeader: false,
           error: true,
           compact: true,
+          maxWidth: 90,
         ),
       );
     }
@@ -67,11 +69,12 @@ class DioClient {
   }
 
   Future<Response> get(
-      String path, {
-        Map<String, dynamic>? queryParameters,
-        Options? options,
-        String? cancelTag,
-      }) async {
+    String path, {
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    String? cancelTag,
+    AuthRequirement? auth,
+  }) async {
     CancelToken? cancelToken;
     if (cancelTag != null) {
       cancelRequest(cancelTag);
@@ -79,7 +82,7 @@ class DioClient {
       _cancelTokens[cancelTag] = cancelToken;
     }
 
-    final mergedOptions = options ?? Options();
+    final mergedOptions = _withAuthOptions(path, options, auth);
 
     try {
       final response = await _dio.get(
@@ -88,99 +91,88 @@ class DioClient {
         options: mergedOptions,
         cancelToken: cancelToken,
       );
-
-      if (cancelTag != null) {
-        _cancelTokens.remove(cancelTag);
-      }
-      
+      if (cancelTag != null) _cancelTokens.remove(cancelTag);
       return response;
     } catch (e) {
-      if (cancelTag != null) {
-        _cancelTokens.remove(cancelTag);
-      }
+      if (cancelTag != null) _cancelTokens.remove(cancelTag);
       rethrow;
     }
   }
 
   Future<Response> post(
-      String path, {
-        dynamic data,
-        Map<String, dynamic>? queryParameters,
-        Options? options,
-        String? cancelTag,
-      }) async {
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    String? cancelTag,
+    AuthRequirement? auth,
+  }) async {
     CancelToken? cancelToken;
     if (cancelTag != null) {
       cancelRequest(cancelTag);
       cancelToken = CancelToken();
       _cancelTokens[cancelTag] = cancelToken;
     }
+
+    final mergedOptions = _withAuthOptions(path, options, auth);
 
     try {
       final response = await _dio.post(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: options,
+        options: mergedOptions,
         cancelToken: cancelToken,
       );
-      
-      if (cancelTag != null) {
-        _cancelTokens.remove(cancelTag);
-      }
-      
+      if (cancelTag != null) _cancelTokens.remove(cancelTag);
       return response;
     } catch (e) {
-      if (cancelTag != null) {
-        _cancelTokens.remove(cancelTag);
-      }
+      if (cancelTag != null) _cancelTokens.remove(cancelTag);
       rethrow;
     }
   }
 
   Future<Response> put(
-      String path, {
-        dynamic data,
-        Map<String, dynamic>? queryParameters,
-        Options? options,
-        String? cancelTag,
-      }) async {
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    String? cancelTag,
+    AuthRequirement? auth,
+  }) async {
     CancelToken? cancelToken;
     if (cancelTag != null) {
       cancelRequest(cancelTag);
       cancelToken = CancelToken();
       _cancelTokens[cancelTag] = cancelToken;
     }
+
+    final mergedOptions = _withAuthOptions(path, options, auth);
 
     try {
       final response = await _dio.put(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: options,
+        options: mergedOptions,
         cancelToken: cancelToken,
       );
-      
-      if (cancelTag != null) {
-        _cancelTokens.remove(cancelTag);
-      }
-      
+      if (cancelTag != null) _cancelTokens.remove(cancelTag);
       return response;
     } catch (e) {
-      if (cancelTag != null) {
-        _cancelTokens.remove(cancelTag);
-      }
+      if (cancelTag != null) _cancelTokens.remove(cancelTag);
       rethrow;
     }
   }
 
   Future<Response> delete(
-      String path, {
-        dynamic data,
-        Map<String, dynamic>? queryParameters,
-        Options? options,
-        String? cancelTag,
-      }) async {
+    String path, {
+    dynamic data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    String? cancelTag,
+    AuthRequirement? auth,
+  }) async {
     CancelToken? cancelToken;
     if (cancelTag != null) {
       cancelRequest(cancelTag);
@@ -188,42 +180,43 @@ class DioClient {
       _cancelTokens[cancelTag] = cancelToken;
     }
 
+    final mergedOptions = _withAuthOptions(path, options, auth);
+
     try {
       final response = await _dio.delete(
         path,
         data: data,
         queryParameters: queryParameters,
-        options: options,
+        options: mergedOptions,
         cancelToken: cancelToken,
       );
-      
-      if (cancelTag != null) {
-        _cancelTokens.remove(cancelTag);
-      }
-      
+      if (cancelTag != null) _cancelTokens.remove(cancelTag);
       return response;
     } catch (e) {
-      if (cancelTag != null) {
-        _cancelTokens.remove(cancelTag);
-      }
+      if (cancelTag != null) _cancelTokens.remove(cancelTag);
       rethrow;
     }
+  }
+
+  Options _withAuthOptions(String path, Options? options, AuthRequirement? auth) {
+    final requirement = auth ?? RequestAuthPolicyResolver.resolve(path);
+    final merged = options ?? Options();
+    merged.extra ??= <String, dynamic>{};
+    merged.extra![RequestAuthMeta.authRequirementKey] = requirement.name;
+    return merged;
   }
 }
 
 class _CacheUserInterceptor extends QueuedInterceptor {
-  final SecureStorageService _secureStorage;
   static const String _headerKey = 'X-Cache-User';
-
-  _CacheUserInterceptor(this._secureStorage);
 
   @override
   Future<void> onRequest(
     RequestOptions options,
     RequestInterceptorHandler handler,
   ) async {
-    final token = await _secureStorage.getAccessToken();
-    options.headers[_headerKey] = (token != null && token.isNotEmpty) ? 'auth' : 'guest';
+    final hasAuth = options.extra[RequestAuthMeta.authAttachedKey] == true;
+    options.headers[_headerKey] = hasAuth ? 'auth' : 'guest';
     handler.next(options);
   }
 }
@@ -235,13 +228,43 @@ class _AuthInterceptor extends Interceptor {
 
   @override
   Future<void> onRequest(
-      RequestOptions options,
-      RequestInterceptorHandler handler,
-      ) async {
-    final token = await _secureStorage.getAccessToken();
-    if (token != null) {
-      options.headers['Authorization'] = 'Bearer $token';
+    RequestOptions options,
+    RequestInterceptorHandler handler,
+  ) async {
+    final authRequirement = _readAuthRequirement(options);
+
+    if (authRequirement == AuthRequirement.public) {
+      options.extra[RequestAuthMeta.authAttachedKey] = false;
+      handler.next(options);
+      return;
     }
+
+    final token = await _secureStorage.getAccessToken();
+    final hasToken = token != null && token.isNotEmpty;
+
+    if (authRequirement == AuthRequirement.protected && !hasToken) {
+      handler.reject(
+        DioException(
+          requestOptions: options,
+          response: Response(
+            requestOptions: options,
+            statusCode: 401,
+            data: {'message': 'يجب تسجيل الدخول أولاً'},
+          ),
+          type: DioExceptionType.badResponse,
+          error: 'Missing token for protected endpoint',
+        ),
+      );
+      return;
+    }
+
+    if (hasToken) {
+      options.headers['Authorization'] = 'Bearer $token';
+      options.extra[RequestAuthMeta.authAttachedKey] = true;
+    } else {
+      options.extra[RequestAuthMeta.authAttachedKey] = false;
+    }
+
     handler.next(options);
   }
 
@@ -249,6 +272,15 @@ class _AuthInterceptor extends Interceptor {
   void onError(DioException err, ErrorInterceptorHandler handler) {
     handler.next(err);
   }
+
+  AuthRequirement _readAuthRequirement(RequestOptions options) {
+    final raw = options.extra[RequestAuthMeta.authRequirementKey];
+    if (raw is String) {
+      return AuthRequirement.values.firstWhere(
+        (v) => v.name == raw,
+        orElse: () => AuthRequirement.optional,
+      );
+    }
+    return AuthRequirement.optional;
+  }
 }
-
-

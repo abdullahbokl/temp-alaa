@@ -45,7 +45,7 @@ class _HomeTabState extends State<HomeTab> {
 
   Future<void> _loadSiteBanners() async {
     setState(() => _isLoadingBanners = true);
-    final result = await _getSiteBannersUseCase(perPage: 10, page: 1);
+    final result = await _getSiteBannersUseCase(perPage: 3, page: 1);
     result.fold(
       (failure) {
         if (mounted) {
@@ -519,4 +519,3 @@ class _HomeFreeCoursesSection extends StatelessWidget {
     );
   }
 }
-

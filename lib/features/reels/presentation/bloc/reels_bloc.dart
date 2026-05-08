@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'dart:async';
 import '../../../../core/events/global_event_bus.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../../../../core/events/subscription_updated_event.dart';
 import '../../data/models/reel_category_model.dart';
 import '../../domain/entities/reel.dart';
@@ -60,7 +61,7 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
     _subscriptionUpdatedListener = globalEventBus
         .on<SubscriptionUpdatedEvent>()
         .listen((_) {
-      debugPrint('🔥 SubscriptionUpdatedEvent received in ReelsBloc');
+      AppLogger.log('🔥 SubscriptionUpdatedEvent received in ReelsBloc', tag: 'ReelsBloc');
       add(LoadReelsFeedEvent(perPage: _perPage, categoryId: _currentCategoryId));
     });
   }
@@ -338,16 +339,16 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
   ) async {
     final currentState = state;
     if (currentState is! ReelsLoaded) {
-      debugPrint('ReelsBloc: Cannot toggle like - state is not ReelsLoaded');
+      AppLogger.log('Cannot toggle like - state is not ReelsLoaded', tag: 'ReelsBloc');
       return;
     }
 
     final isCurrentlyLiked = currentState.likedReels[event.reelId] ?? false;
-    debugPrint('ReelsBloc: Toggling like for reel ${event.reelId}, currently liked: $isCurrentlyLiked');
+    AppLogger.log('Toggling like for reel ${event.reelId}, currently liked: $isCurrentlyLiked', tag: 'ReelsBloc');
 
     final reelIndex = currentState.reels.indexWhere((r) => r.id == event.reelId);
     if (reelIndex == -1) {
-      debugPrint('ReelsBloc: Reel ${event.reelId} not found in state');
+      AppLogger.log('Reel ${event.reelId} not found in state', tag: 'ReelsBloc');
       return;
     }
     final reel = currentState.reels[reelIndex];
@@ -368,7 +369,7 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
       likeCounts: newLikeCounts,
     ));
 
-    debugPrint('ReelsBloc: Calling API to ${isCurrentlyLiked ? "unlike" : "like"} reel ${event.reelId}');
+    AppLogger.log('Calling API to ${isCurrentlyLiked ? "unlike" : "like"} reel ${event.reelId}', tag: 'ReelsBloc');
     final result = await toggleReelLikeUseCase(
       reelId: event.reelId,
       isCurrentlyLiked: isCurrentlyLiked,
@@ -376,7 +377,7 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
 
     result.fold(
       (failure) {
-        debugPrint('ReelsBloc: Like API failed - ${failure.message}');
+        AppLogger.error('Like API failed', tag: 'ReelsBloc', error: failure.message);
         if (state is ReelsLoaded) {
           final revertedLikedReels = Map<int, bool>.from((state as ReelsLoaded).likedReels);
           revertedLikedReels[event.reelId] = isCurrentlyLiked;
@@ -391,7 +392,7 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
         }
       },
       (newLikedStatus) {
-        debugPrint('ReelsBloc: Like API success - new status: $newLikedStatus');
+        AppLogger.log('Like API success - new status: $newLikedStatus', tag: 'ReelsBloc');
       },
     );
   }
@@ -401,23 +402,23 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
     Emitter<ReelsState> emit,
   ) async {
     if (_viewedReelIds.contains(event.reelId)) {
-      debugPrint('ReelsBloc: Reel ${event.reelId} already viewed, skipping');
+      AppLogger.log('Reel ${event.reelId} already viewed, skipping', tag: 'ReelsBloc');
       return;
     }
 
     final currentState = state;
     if (currentState is! ReelsLoaded) {
-      debugPrint('ReelsBloc: Cannot mark viewed - state is not ReelsLoaded');
+      AppLogger.log('Cannot mark viewed - state is not ReelsLoaded', tag: 'ReelsBloc');
       return;
     }
 
-    debugPrint('ReelsBloc: Marking reel ${event.reelId} as viewed');
+    AppLogger.log('Marking reel ${event.reelId} as viewed', tag: 'ReelsBloc');
 
     _viewedReelIds.add(event.reelId);
 
     final reelIndex = currentState.reels.indexWhere((r) => r.id == event.reelId);
     if (reelIndex == -1) {
-      debugPrint('ReelsBloc: Reel ${event.reelId} not found in state for view tracking');
+      AppLogger.log('Reel ${event.reelId} not found in state for view tracking', tag: 'ReelsBloc');
       return;
     }
     final reel = currentState.reels[reelIndex];
@@ -428,15 +429,15 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
     
     emit(currentState.copyWith(viewCounts: newViewCounts));
 
-    debugPrint('ReelsBloc: Calling API to record view for reel ${event.reelId}');
+    AppLogger.log('Calling API to record view for reel ${event.reelId}', tag: 'ReelsBloc');
     final result = await recordReelViewUseCase(event.reelId);
     
     result.fold(
       (failure) {
-        debugPrint('ReelsBloc: View API failed - ${failure.message}');
+        AppLogger.error('View API failed', tag: 'ReelsBloc', error: failure.message);
       },
       (_) {
-        debugPrint('ReelsBloc: View API success for reel ${event.reelId}');
+        AppLogger.log('View API success for reel ${event.reelId}', tag: 'ReelsBloc');
       },
     );
   }
@@ -449,7 +450,7 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
 
     result.fold(
       (failure) {
-        debugPrint('ReelsBloc: Failed to load categories - ${failure.message}');
+        AppLogger.error('Failed to load categories', tag: 'ReelsBloc', error: failure.message);
       },
       (categories) {
         _categories = categories;

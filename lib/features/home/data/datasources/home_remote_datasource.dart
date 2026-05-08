@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/network/request_auth.dart';
 import '../../../../core/network/cache_service.dart';
 import '../models/home_data_model.dart';
 
@@ -22,7 +23,10 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
   @override
   Future<HomeDataModel> getHomeData() async {
     try {
-      final response = await dioClient.get(ApiConstants.homeApi);
+      final response = await dioClient.get(
+        ApiConstants.homeApi,
+        auth: AuthRequirement.public,
+      );
 
       if (response.statusCode == 200) {
         final responseData = response.data as Map<String, dynamic>?;
@@ -59,6 +63,5 @@ class HomeRemoteDataSourceImpl implements HomeRemoteDataSource {
     }
   }
 }
-
 
 

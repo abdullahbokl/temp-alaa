@@ -1,92 +1,73 @@
 import 'package:equatable/equatable.dart';
+
 import '../../../home/domain/entities/course.dart';
 
-abstract class CoursesState extends Equatable {
-  const CoursesState();
-
-  @override
-  List<Object?> get props => [];
-}
-
-class CoursesInitial extends CoursesState {}
-
-class CoursesLoading extends CoursesState {}
-
-class CoursesLoaded extends CoursesState {
-  final List<Course> courses;
+class CoursesState extends Equatable {
+  final List<Course> items;
+  final bool isInitialLoading;
+  final bool isRefreshing;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final int currentPage;
+  final String? errorMessage;
   final int? categoryId;
   final int? specialtyId;
-  final int currentPage;
-  final bool hasMorePages;
-  final bool isLoadingMore;
+  final bool isMyCoursesMode;
 
-  const CoursesLoaded({
-    required this.courses,
+  const CoursesState({
+    this.items = const [],
+    this.isInitialLoading = false,
+    this.isRefreshing = false,
+    this.isLoadingMore = false,
+    this.hasMore = false,
+    this.currentPage = 1,
+    this.errorMessage,
     this.categoryId,
     this.specialtyId,
-    this.currentPage = 1,
-    this.hasMorePages = false,
-    this.isLoadingMore = false,
+    this.isMyCoursesMode = false,
   });
 
-  CoursesLoaded copyWith({
-    List<Course>? courses,
+  CoursesState copyWith({
+    List<Course>? items,
+    bool? isInitialLoading,
+    bool? isRefreshing,
+    bool? isLoadingMore,
+    bool? hasMore,
+    int? currentPage,
+    String? errorMessage,
     int? categoryId,
     int? specialtyId,
-    int? currentPage,
-    bool? hasMorePages,
-    bool? isLoadingMore,
+    bool? isMyCoursesMode,
+    bool clearError = false,
   }) {
-    return CoursesLoaded(
-      courses: courses ?? this.courses,
+    return CoursesState(
+      items: items ?? this.items,
+      isInitialLoading: isInitialLoading ?? this.isInitialLoading,
+      isRefreshing: isRefreshing ?? this.isRefreshing,
+      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      hasMore: hasMore ?? this.hasMore,
+      currentPage: currentPage ?? this.currentPage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       categoryId: categoryId ?? this.categoryId,
       specialtyId: specialtyId ?? this.specialtyId,
-      currentPage: currentPage ?? this.currentPage,
-      hasMorePages: hasMorePages ?? this.hasMorePages,
-      isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isMyCoursesMode: isMyCoursesMode ?? this.isMyCoursesMode,
     );
   }
 
+  bool get hasError => errorMessage != null && errorMessage!.isNotEmpty;
+  bool get isEmpty => !isInitialLoading && items.isEmpty && !hasError;
+
   @override
   List<Object?> get props => [
-        courses,
+        items,
+        isInitialLoading,
+        isRefreshing,
+        isLoadingMore,
+        hasMore,
+        currentPage,
+        errorMessage,
         categoryId,
         specialtyId,
-        currentPage,
-        hasMorePages,
-        isLoadingMore,
+        isMyCoursesMode,
       ];
 }
-
-class CourseDetailsLoaded extends CoursesState {
-  final Course course;
-
-  const CourseDetailsLoaded({required this.course});
-
-  @override
-  List<Object?> get props => [course];
-}
-
-class MyCoursesLoaded extends CoursesState {
-  final List<Course> courses;
-
-  const MyCoursesLoaded({required this.courses});
-
-  @override
-  List<Object?> get props => [courses];
-}
-
-class CoursesEmpty extends CoursesState {}
-
-class CoursesError extends CoursesState {
-  final String message;
-
-  const CoursesError(this.message);
-
-  @override
-  List<Object?> get props => [message];
-}
-
-
-
-

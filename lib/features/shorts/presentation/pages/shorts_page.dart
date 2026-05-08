@@ -60,13 +60,6 @@ class _ShortsPageState extends State<ShortsPage> {
     if (_tabNotifier != null && mounted) {
       final newIsActive = _tabNotifier!.value == 1;
       if (_isActive != newIsActive) {
-        if (_isActive && !newIsActive) {
-          _reelsBloc?.close();
-          _reelsBloc = null;
-          _hasLoadedOnce = false;
-          _initialIndex = null;
-        }
-
         setState(() {
           _isActive = newIsActive;
         });
@@ -127,6 +120,5 @@ class _ShortsPageState extends State<ShortsPage> {
     );
   }
 }
-
 
 

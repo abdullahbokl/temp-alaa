@@ -22,47 +22,48 @@ class CourseGridCard extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Container(
-            width: Responsive.width(context, 85),
-            height: Responsive.width(context, 85),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.grey.withOpacity(0.2),
-                width: Responsive.width(context, 1),
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.grey.withOpacity(0.4),
-                  blurRadius: Responsive.width(context, 4),
-                  offset: Offset(0, Responsive.height(context, 2)),
+          Expanded(
+            child: Container(
+              width: Responsive.width(context, 85),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: AppColors.grey.withOpacity(0.2),
+                  width: Responsive.width(context, 1),
                 ),
-              ],
-            ),
-            child: ClipOval(
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: _buildThumbnail(context),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.4),
+                    blurRadius: Responsive.width(context, 4),
+                    offset: Offset(0, Responsive.height(context, 2)),
                   ),
-                  if (course.soon)
+                ],
+              ),
+              child: ClipOval(
+                child: Stack(
+                  children: [
                     Positioned.fill(
-                      child: Container(
-                        color: Colors.black.withOpacity(0.5),
-                        alignment: Alignment.center,
-                        child: Text(
-                          'قريباً',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: Responsive.fontSize(context, 12),
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
+                      child: _buildThumbnail(context),
+                    ),
+                    if (course.soon)
+                      Positioned.fill(
+                        child: Container(
+                          color: Colors.black.withOpacity(0.5),
+                          alignment: Alignment.center,
+                          child: Text(
+                            'قريباً',
+                            style: TextStyle(
+                              fontFamily: 'Cairo',
+                              fontSize: Responsive.fontSize(context, 12),
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),

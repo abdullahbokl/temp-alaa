@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/error/exceptions.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/app_logger.dart';
 import '../models/reel_category_model.dart';
 import '../models/reels_feed_meta_model.dart';
 import '../models/reels_feed_response_model.dart';
@@ -150,14 +151,14 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
   Future<void> recordReelView(int reelId) async {
     try {
       final endpoint = ApiConstants.recordReelView.replaceAll('{id}', reelId.toString());
-      debugPrint('ReelsDataSource: Recording view - POST $endpoint');
+      AppLogger.network('ReelsDataSource: Recording view - POST $endpoint');
       
       final response = await dioClient.post(endpoint);
-      debugPrint('ReelsDataSource: View response status: ${response.statusCode}');
-      debugPrint('ReelsDataSource: View response data: ${response.data}');
+      AppLogger.network('ReelsDataSource: View response status: ${response.statusCode}');
+      AppLogger.network('ReelsDataSource: View response data: ${response.data}');
 
       if (response.statusCode == 201 || response.statusCode == 200) {
-        debugPrint('ReelsDataSource: View recorded successfully');
+        AppLogger.network('ReelsDataSource: View recorded successfully');
         return;
       }
 
@@ -166,8 +167,8 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
-      debugPrint('ReelsDataSource: View DioException - ${e.message}');
-      debugPrint('ReelsDataSource: View error response: ${e.response?.data}');
+      AppLogger.error('ReelsDataSource: View DioException', error: e.message);
+      AppLogger.network('ReelsDataSource: View error response: ${e.response?.data}');
       
       String errorMessage = 'خطأ في الاتصال بالخادم';
 
@@ -182,7 +183,7 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
         statusCode: e.response?.statusCode,
       );
     } catch (e) {
-      debugPrint('ReelsDataSource: View unexpected error - $e');
+      AppLogger.error('ReelsDataSource: View unexpected error', error: e);
       throw ServerException(message: 'خطأ غير متوقع: $e');
     }
   }
@@ -191,14 +192,14 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
   Future<void> likeReel(int reelId) async {
     try {
       final endpoint = ApiConstants.likeReel.replaceAll('{id}', reelId.toString());
-      debugPrint('ReelsDataSource: Liking reel - POST $endpoint');
+      AppLogger.network('ReelsDataSource: Liking reel - POST $endpoint');
       
       final response = await dioClient.post(endpoint);
-      debugPrint('ReelsDataSource: Like response status: ${response.statusCode}');
-      debugPrint('ReelsDataSource: Like response data: ${response.data}');
+      AppLogger.network('ReelsDataSource: Like response status: ${response.statusCode}');
+      AppLogger.network('ReelsDataSource: Like response data: ${response.data}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        debugPrint('ReelsDataSource: Like recorded successfully');
+        AppLogger.network('ReelsDataSource: Like recorded successfully');
         return;
       }
 
@@ -207,8 +208,8 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
-      debugPrint('ReelsDataSource: Like DioException - ${e.message}');
-      debugPrint('ReelsDataSource: Like error response: ${e.response?.data}');
+      AppLogger.error('ReelsDataSource: Like DioException', error: e.message);
+      AppLogger.network('ReelsDataSource: Like error response: ${e.response?.data}');
       
       String errorMessage = 'خطأ في الاتصال بالخادم';
 
@@ -223,7 +224,7 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
         statusCode: e.response?.statusCode,
       );
     } catch (e) {
-      debugPrint('ReelsDataSource: Like unexpected error - $e');
+      AppLogger.error('ReelsDataSource: Like unexpected error', error: e);
       throw ServerException(message: 'خطأ غير متوقع: $e');
     }
   }
@@ -232,14 +233,14 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
   Future<void> unlikeReel(int reelId) async {
     try {
       final endpoint = ApiConstants.likeReel.replaceAll('{id}', reelId.toString());
-      debugPrint('ReelsDataSource: Unliking reel - DELETE $endpoint');
+      AppLogger.network('ReelsDataSource: Unliking reel - DELETE $endpoint');
       
       final response = await dioClient.delete(endpoint);
-      debugPrint('ReelsDataSource: Unlike response status: ${response.statusCode}');
-      debugPrint('ReelsDataSource: Unlike response data: ${response.data}');
+      AppLogger.network('ReelsDataSource: Unlike response status: ${response.statusCode}');
+      AppLogger.network('ReelsDataSource: Unlike response data: ${response.data}');
 
       if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 204) {
-        debugPrint('ReelsDataSource: Unlike recorded successfully');
+        AppLogger.network('ReelsDataSource: Unlike recorded successfully');
         return;
       }
 
@@ -248,8 +249,8 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
         statusCode: response.statusCode,
       );
     } on DioException catch (e) {
-      debugPrint('ReelsDataSource: Unlike DioException - ${e.message}');
-      debugPrint('ReelsDataSource: Unlike error response: ${e.response?.data}');
+      AppLogger.error('ReelsDataSource: Unlike DioException', error: e.message);
+      AppLogger.network('ReelsDataSource: Unlike error response: ${e.response?.data}');
       
       String errorMessage = 'خطأ في الاتصال بالخادم';
 
@@ -264,7 +265,7 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
         statusCode: e.response?.statusCode,
       );
     } catch (e) {
-      debugPrint('ReelsDataSource: Unlike unexpected error - $e');
+      AppLogger.error('ReelsDataSource: Unlike unexpected error', error: e);
       throw ServerException(message: 'خطأ غير متوقع: $e');
     }
   }
