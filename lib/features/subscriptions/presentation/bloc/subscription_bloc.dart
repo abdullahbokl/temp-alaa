@@ -54,56 +54,68 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     on<ClearSubscriptionStateEvent>(_onClearState);
     on<ProcessPaymentEvent>(_onProcessPayment);
     on<VerifyIapReceiptEvent>(_onVerifyIapReceipt);
+    on<IapPurchaseUpdatedEvent>(_onIapPurchaseUpdated);
+    on<IapErrorEvent>(_onIapError);
   }
 
-  Future<void> _initializeGooglePlayBilling(
-      Emitter<SubscriptionState> emit,
-      ) async {
+  Future<void> _initializeGooglePlayBilling() async {
     if (_billingInitialized) return;
 
     print('Initializing Google Play Billing...');
     try {
       await _billingService.initialize(
-        onPurchaseUpdated: (PurchaseDetails purchase) async {
+        onPurchaseUpdated: (PurchaseDetails purchase) {
           print('Purchase updated callback triggered');
-          await _verifyAndCompletePurchase(purchase, emit);
+          add(IapPurchaseUpdatedEvent(purchase));
         },
         onError: (String error) {
           print('Billing error callback: $error');
-          emit(PaymentFailed(error));
+          add(IapErrorEvent(error));
         },
       );
       _billingInitialized = true;
       print('Google Play Billing initialized successfully');
     } catch (e) {
       print('Failed to initialize billing: $e');
-      emit(PaymentFailed('فشل تهيئة نظام الدفع: $e'));
       rethrow;
     }
   }
 
-  Future<void> _initializeAppleIAP(Emitter<SubscriptionState> emit) async {
+  Future<void> _initializeAppleIAP() async {
     if (_appleIapInitialized) return;
 
     print('Initializing Apple IAP...');
     try {
       await _appleIapService.initialize(
-        onPurchaseUpdated: (PurchaseDetails purchase) async {
+        onPurchaseUpdated: (PurchaseDetails purchase) {
           print('Apple IAP purchase updated');
-          await _verifyAndCompletePurchase(purchase, emit);
+          add(IapPurchaseUpdatedEvent(purchase));
         },
         onError: (String error) {
           print('Apple IAP error: $error');
-          emit(PaymentFailed(error));
+          add(IapErrorEvent(error));
         },
       );
       _appleIapInitialized = true;
       print('Apple IAP initialized successfully');
     } catch (e) {
       print('Failed to initialize Apple IAP: $e');
-      emit(PaymentFailed('فشل تهيئة نظام الدفع: $e'));
       rethrow;
     }
+  }
+
+  Future<void> _onIapPurchaseUpdated(
+    IapPurchaseUpdatedEvent event,
+    Emitter<SubscriptionState> emit,
+  ) async {
+    await _verifyAndCompletePurchase(event.purchase, emit);
+  }
+
+  Future<void> _onIapError(
+    IapErrorEvent event,
+    Emitter<SubscriptionState> emit,
+  ) async {
+    emit(PaymentFailed(event.error));
   }
 
   Future<void> _completePurchaseForStore(
@@ -571,7 +583,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
             print('Payment record created with ID: $_pendingPurchaseId');
 
             if (!_appleIapInitialized) {
-              await _initializeAppleIAP(emit);
+              await _initializeAppleIAP();
             }
 
             final productId = AppleIAPService.getProductId(event.subscriptionId!);
@@ -668,7 +680,7 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
             print('Payment record created with ID: $_pendingPurchaseId');
 
             if (!_billingInitialized) {
-              await _initializeGooglePlayBilling(emit);
+              await _initializeGooglePlayBilling();
             }
 
             final productId = GooglePlayBillingService.getProductId(event.subscriptionId!);
@@ -754,12 +766,12 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
 
     final result = await subscriptionRepository.processPayment(request: request);
 
-    result.fold(
-          (failure) {
-            _paymentTimeoutTimer?.cancel();
-            emit(PaymentFailed(failure.message));
-          },
-          (response) {
+    await result.fold(
+      (failure) async {
+        _paymentTimeoutTimer?.cancel();
+        emit(PaymentFailed(failure.message));
+      },
+      (response) async {
         _paymentTimeoutTimer?.cancel();
         if (response.isSuccess) {
           if (response.isFreeSubscription ||
@@ -772,10 +784,8 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
             emit(const SubscriptionSuccessState(message: 'تم تفعيل الاشتراك 🎉'));
             _notifySubscriptionUpdated();
             print('Payment completed, reloading subscriptions in 0.5 seconds...');
-            Future.delayed(const Duration(milliseconds: 500), () async {
-              print('Reloading subscriptions after successful payment...');
-              await _onLoadSubscriptions(const LoadSubscriptionsEvent(), emit);
-            });
+            await Future.delayed(const Duration(milliseconds: 500));
+            add(const LoadSubscriptionsEvent());
           } else if (response.hasCheckoutUrl) {
             emit(PaymentCheckoutReady(
               checkoutUrl: response.checkoutUrl!,
@@ -790,10 +800,8 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
               emit(const SubscriptionSuccessState(message: 'تم تفعيل الاشتراك 🎉'));
               _notifySubscriptionUpdated();
               print('Payment completed, reloading subscriptions in 0.5 seconds...');
-              Future.delayed(const Duration(milliseconds: 500), () async {
-                print('Reloading subscriptions after successful payment...');
-                await _onLoadSubscriptions(const LoadSubscriptionsEvent(), emit);
-              });
+              await Future.delayed(const Duration(milliseconds: 500));
+              add(const LoadSubscriptionsEvent());
             } else {
               emit(PaymentInitiated(
                 purchase: response.purchase!,
@@ -809,10 +817,8 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
               emit(const SubscriptionSuccessState(message: 'تم تفعيل الاشتراك 🎉'));
               _notifySubscriptionUpdated();
               print('Payment completed, reloading subscriptions in 0.5 seconds...');
-              Future.delayed(const Duration(milliseconds: 500), () async {
-                print('Reloading subscriptions after successful payment...');
-                await _onLoadSubscriptions(const LoadSubscriptionsEvent(), emit);
-              });
+              await Future.delayed(const Duration(milliseconds: 500));
+              add(const LoadSubscriptionsEvent());
             } else {
               emit(PaymentInitiated(
                 purchase: null,

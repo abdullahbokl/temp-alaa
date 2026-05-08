@@ -17,6 +17,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     on<RefreshHomeDataEvent>(_onRefreshHomeData);
     on<StartRealtimeUpdatesEvent>(_onStartRealtimeUpdates);
     on<StopRealtimeUpdatesEvent>(_onStopRealtimeUpdates);
+    on<RealtimeHomeDataUpdateEvent>(_onRealtimeHomeDataUpdate);
 
     add(StartRealtimeUpdatesEvent());
   }
@@ -31,10 +32,17 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         final result = await getHomeDataUseCase();
         result.fold(
           (_) {},
-              (homeData) => emit(HomeLoaded(homeData)),
+          (homeData) => add(RealtimeHomeDataUpdateEvent(homeData)),
         );
       },
     );
+  }
+
+  Future<void> _onRealtimeHomeDataUpdate(
+    RealtimeHomeDataUpdateEvent event,
+    Emitter<HomeState> emit,
+  ) async {
+    emit(HomeLoaded(event.homeData));
   }
   
   Future<void> _onStopRealtimeUpdates(

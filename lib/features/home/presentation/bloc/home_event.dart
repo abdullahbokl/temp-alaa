@@ -15,5 +15,13 @@ class StartRealtimeUpdatesEvent extends HomeEvent {}
 
 class StopRealtimeUpdatesEvent extends HomeEvent {}
 
+class RealtimeHomeDataUpdateEvent extends HomeEvent {
+  final dynamic homeData;
+  const RealtimeHomeDataUpdateEvent(this.homeData);
+
+  @override
+  List<Object?> get props => [homeData];
+}
+
 
 

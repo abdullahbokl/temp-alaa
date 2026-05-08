@@ -107,3 +107,19 @@ class VerifyIapReceiptEvent extends SubscriptionEvent {
   List<Object?> get props => [receiptData, transactionId, purchaseId, store, purchaseDetails];
 }
 
+class IapPurchaseUpdatedEvent extends SubscriptionEvent {
+  final PurchaseDetails purchase;
+  const IapPurchaseUpdatedEvent(this.purchase);
+
+  @override
+  List<Object?> get props => [purchase];
+}
+
+class IapErrorEvent extends SubscriptionEvent {
+  final String error;
+  const IapErrorEvent(this.error);
+
+  @override
+  List<Object?> get props => [error];
+}
+

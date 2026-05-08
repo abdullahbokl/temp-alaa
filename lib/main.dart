@@ -11,13 +11,17 @@ import 'core/network/cache_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-    await FirebaseInAppMessaging.instance
-        .setAutomaticDataCollectionEnabled(true);
-  } catch (error, stackTrace) {
-    debugPrint('Firebase startup skipped: $error');
-    debugPrintStack(stackTrace: stackTrace);
+  // Initialize Firebase only on supported platforms to avoid noisy platform channel errors
+  if (!kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS)) {
+    try {
+      await Firebase.initializeApp();
+      await FirebaseInAppMessaging.instance
+          .setAutomaticDataCollectionEnabled(true);
+    } catch (error) {
+      debugPrint('Firebase initialization skipped on this device: $error');
+    }
+  } else {
+    debugPrint('Firebase not supported or configured for the current platform (${defaultTargetPlatform.name}). Skipping.');
   }
 
   await Future.wait([

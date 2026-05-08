@@ -32,6 +32,7 @@ class LearnifyApp extends StatelessWidget {
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
+        navigatorKey: AppRouter.navigatorKey,
         navigatorObservers: [routeObserver],
         initialRoute: AppRouter.splash,
         onGenerateRoute: AppRouter.generateRoute,
@@ -39,8 +40,10 @@ class LearnifyApp extends StatelessWidget {
           return BlocListener<AuthBloc, AuthState>(
             listener: (context, state) {
               if (state is AuthLoggedInFromAnotherDevice) {
+                final navContext = AppRouter.navigatorKey.currentContext;
+                if (navContext == null) return;
                 showDialog(
-                  context: context,
+                  context: navContext,
                   barrierDismissible: false,
                   builder: (ctx) {
                     return Center(
@@ -78,7 +81,7 @@ class LearnifyApp extends StatelessWidget {
               } else if (state is AuthUnauthenticated) {
                 final currentRoute = ModalRoute.of(context)?.settings.name;
                 if (currentRoute == AppRouter.splash || currentRoute == AppRouter.login) return;
-                Navigator.of(context).pushNamedAndRemoveUntil(
+                AppRouter.navigatorKey.currentState?.pushNamedAndRemoveUntil(
                   AppRouter.splash,
                   (route) => false,
                 );
