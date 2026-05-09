@@ -68,7 +68,7 @@ class ReelControllerPool {
   void releaseSlot(int slot) {
     if (slot < 0 || slot >= _controllers.length) return;
     try {
-      _controllers[slot].pause();
+      unawaited(_controllers[slot].pause().catchError((_) {}));
     } catch (_) {}
   }
 
@@ -80,14 +80,24 @@ class ReelControllerPool {
   static String toBunnyHlsUrl(String bunnyPlayUrl) {
     final url = bunnyPlayUrl.trim();
     if (url.isEmpty) return url;
-    if (url.contains('.m3u8')) return url;
+    if (url.toLowerCase().contains('.m3u8')) return url;
     if (!url.contains('/play/')) return url;
-    final parts = url.split('/play/');
-    if (parts.length != 2 || parts[1].isEmpty) return url;
-    final pathPart = parts[1].split('?').first.trim();
-    if (pathPart.isEmpty) return url;
-    final base = parts[0];
-    return '$base/$pathPart/playlist.m3u8';
+
+    try {
+      final uri = Uri.parse(url);
+      final path = uri.path;
+      if (!path.contains('/play/')) return url;
+
+      // Bunny HLS is usually at /{libraryId}/{videoId}/playlist.m3u8
+      // and we want to preserve query params (tokens).
+      var newPath = path.replaceFirst('/play/', '/');
+      if (!newPath.endsWith('/')) newPath += '/';
+      newPath += 'playlist.m3u8';
+
+      return uri.replace(path: newPath.replaceAll('//', '/')).toString();
+    } catch (_) {
+      return url;
+    }
   }
 
   static bool _isIosLikeReelsTarget() {
@@ -137,7 +147,7 @@ class ReelControllerPool {
     bool forceStart = true,
   }) async {
     try {
-      controller.pause();
+      await controller.pause();
     } catch (_) {}
 
     final trimmed = url.trim();
@@ -167,13 +177,16 @@ class ReelControllerPool {
     }
 
     final hlsUrl = toBunnyHlsUrl(trimmed);
+    final isHls = hlsUrl.toLowerCase().contains('.m3u8');
 
-    try {
-      await tryLoad(hlsUrl, BetterPlayerVideoFormat.hls);
-      await forceStartPlayback();
-      return true;
-    } catch (e) {
-      debugPrint('Reel HLS load failed: $e');
+    if (isHls) {
+      try {
+        await tryLoad(hlsUrl, BetterPlayerVideoFormat.hls);
+        await forceStartPlayback();
+        return true;
+      } catch (e) {
+        debugPrint('Reel HLS load failed: $e');
+      }
     }
 
     try {
@@ -200,7 +213,7 @@ class ReelControllerPool {
   void pauseAll() {
     for (final c in _controllers) {
       try {
-        c.pause();
+        unawaited(c.pause().catchError((_) {}));
       } catch (_) {}
     }
   }

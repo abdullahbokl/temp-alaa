@@ -9,6 +9,7 @@ import '../../../../core/utils/responsive.dart';
 import '../../domain/entities/reel.dart';
 import '../player/reel_constants.dart';
 import '../player/reel_controller_pool.dart';
+import '../../../../core/config/app_config.dart';
 
 class ReelPlayerWidget extends StatefulWidget {
   final Reel reel;
@@ -63,7 +64,7 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
 
   Timer? _viewTimer;
   bool _hasRecordedView = false;
-  static const _viewDuration = Duration(seconds: 3);
+  static final _viewDuration = AppConfig.shortsViewCountDelay;
 
   Timer? _loadingTimeoutTimer;
   static const _loadingTimeout = Duration(seconds: 10);
@@ -321,7 +322,11 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
     _viewTimer = Timer(_viewDuration, () {
       if (mounted && _shouldPlayNow && !_hasRecordedView) {
         _hasRecordedView = true;
-        widget.onViewed();
+        try {
+          widget.onViewed();
+        } catch (e) {
+          debugPrint('ReelPlayerWidget: Error in onViewed callback: $e');
+        }
       }
     });
   }

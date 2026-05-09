@@ -128,9 +128,9 @@ class ReelsRemoteDataSourceImpl implements ReelsRemoteDataSource {
       );
     } on DioException catch (e) {
       if (e.response?.statusCode == 401) {
-        return const ReelsFeedResponseModel(
-          reels: [],
-          meta: ReelsFeedMetaModel(perPage: 10, hasMore: false),
+        throw ServerException(
+          message: 'يجب تسجيل الدخول أولاً',
+          statusCode: 401,
         );
       }
 
