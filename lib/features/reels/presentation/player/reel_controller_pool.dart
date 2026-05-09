@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:better_player_plus/better_player_plus.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+
+import '../../../../core/config/bunny_stream_resolver.dart';
 
 const BetterPlayerBufferingConfiguration _reelBufferingConfig =
     BetterPlayerBufferingConfiguration(
@@ -76,28 +79,8 @@ class ReelControllerPool {
     return _controllers.contains(controller);
   }
 
-  /// Bunny Stream `/play/{id}` → `{base}/{id}/playlist.m3u8` for HLS.
   static String toBunnyHlsUrl(String bunnyPlayUrl) {
-    final url = bunnyPlayUrl.trim();
-    if (url.isEmpty) return url;
-    if (url.toLowerCase().contains('.m3u8')) return url;
-    if (!url.contains('/play/')) return url;
-
-    try {
-      final uri = Uri.parse(url);
-      final path = uri.path;
-      if (!path.contains('/play/')) return url;
-
-      // Bunny HLS is usually at /{libraryId}/{videoId}/playlist.m3u8
-      // and we want to preserve query params (tokens).
-      var newPath = path.replaceFirst('/play/', '/');
-      if (!newPath.endsWith('/')) newPath += '/';
-      newPath += 'playlist.m3u8';
-
-      return uri.replace(path: newPath.replaceAll('//', '/')).toString();
-    } catch (_) {
-      return url;
-    }
+    return BunnyStreamResolver.toHlsUrl(bunnyPlayUrl) ?? bunnyPlayUrl.trim();
   }
 
   static bool _isIosLikeReelsTarget() {
@@ -126,7 +109,8 @@ class ReelControllerPool {
     }
 
     try {
-      final result = await _setDataSourceInternal(controller, url: url, forceStart: forceStart);
+      final result = await _setDataSourceInternal(controller,
+          url: url, forceStart: forceStart);
       if (slotKey != null) {
         _loadingCompleters[slotKey]?.complete(result);
         _loadingCompleters.remove(slotKey);
@@ -151,13 +135,17 @@ class ReelControllerPool {
     } catch (_) {}
 
     final trimmed = url.trim();
+    final resolved = BunnyStreamResolver.resolve(trimmed);
 
     Future<void> tryLoad(String loadUrl, BetterPlayerVideoFormat format) async {
       final dataSource = BetterPlayerDataSource(
         BetterPlayerDataSourceType.network,
         loadUrl,
         videoFormat: format,
-        cacheConfiguration: _reelCacheConfig,
+        headers: resolved.headers,
+        cacheConfiguration: _isIosLikeReelsTarget()
+            ? const BetterPlayerCacheConfiguration(useCache: false)
+            : _reelCacheConfig,
         bufferingConfiguration: _reelBufferingConfig,
       );
       await controller.setupDataSource(dataSource);
@@ -174,9 +162,15 @@ class ReelControllerPool {
       try {
         await controller.play();
       } catch (_) {}
+      if (_isIosLikeReelsTarget()) {
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        try {
+          await controller.setVolume(1);
+        } catch (_) {}
+      }
     }
 
-    final hlsUrl = toBunnyHlsUrl(trimmed);
+    final hlsUrl = resolved.isHls ? resolved.url : toBunnyHlsUrl(trimmed);
     final isHls = hlsUrl.toLowerCase().contains('.m3u8');
 
     if (isHls) {
@@ -251,7 +245,8 @@ class ReelControllerPool {
       final url = urls[targetIndex];
       if (url.isEmpty) continue;
 
-      final slotIndex = (slots.length > targetIndex) ? slots[targetIndex] : null;
+      final slotIndex =
+          (slots.length > targetIndex) ? slots[targetIndex] : null;
       if (slotIndex == null || slotIndex >= maxControllers) continue;
 
       final controller = controllerAt(slotIndex);

@@ -1,7 +1,11 @@
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 import 'package:better_player_plus/better_player_plus.dart';
+
+import '../config/bunny_stream_resolver.dart';
 
 const BetterPlayerBufferingConfiguration _lessonBufferingConfig =
     BetterPlayerBufferingConfiguration(
@@ -38,9 +42,9 @@ class _BunnyVideoPlayerState extends State<BunnyVideoPlayer> {
   BetterPlayerController? _betterPlayerController;
   bool _isLoading = true;
 
-  static bool _isDirectStreamUrl(String url) {
-    final u = url.trim().toLowerCase();
-    return u.contains('.m3u8') || u.contains('.mp4');
+  static bool _isIosTarget() {
+    if (kIsWeb) return false;
+    return defaultTargetPlatform == TargetPlatform.iOS;
   }
 
   String _getEmbedUrl(String url) {
@@ -57,7 +61,12 @@ class _BunnyVideoPlayerState extends State<BunnyVideoPlayer> {
   @override
   void initState() {
     super.initState();
-    if (_isDirectStreamUrl(widget.videoUrl)) {
+    final resolved = BunnyStreamResolver.resolve(widget.videoUrl);
+    final shouldUseNative = resolved.url.isNotEmpty &&
+        (resolved.isHls ||
+            widget.videoUrl.trim().toLowerCase().contains('.mp4'));
+
+    if (shouldUseNative) {
       _initNativePlayer();
     } else {
       _initWebViewPlayer();
@@ -68,6 +77,7 @@ class _BunnyVideoPlayerState extends State<BunnyVideoPlayer> {
     final controller = BetterPlayerController(
       BetterPlayerConfiguration(
         autoPlay: true,
+        handleLifecycle: true,
         looping: false,
         fit: BoxFit.contain,
         deviceOrientationsOnFullScreen: const [
@@ -93,20 +103,37 @@ class _BunnyVideoPlayerState extends State<BunnyVideoPlayer> {
       ),
     );
 
-    final u = widget.videoUrl.trim().toLowerCase();
-    final format = u.contains('.m3u8')
+    final resolved = BunnyStreamResolver.resolve(widget.videoUrl);
+    final format = resolved.isHls
         ? BetterPlayerVideoFormat.hls
         : BetterPlayerVideoFormat.other;
+    final useCache = !_isIosTarget();
 
     final dataSource = BetterPlayerDataSource(
       BetterPlayerDataSourceType.network,
-      widget.videoUrl,
+      resolved.url,
       videoFormat: format,
-      cacheConfiguration: _lessonCacheConfig,
+      headers: resolved.headers,
+      cacheConfiguration: useCache
+          ? _lessonCacheConfig
+          : const BetterPlayerCacheConfiguration(useCache: false),
       bufferingConfiguration: _lessonBufferingConfig,
     );
 
     await controller.setupDataSource(dataSource);
+    if (_isIosTarget()) {
+      try {
+        await controller.setVolume(0);
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      try {
+        await controller.play();
+      } catch (_) {}
+      await Future<void>.delayed(const Duration(milliseconds: 150));
+      try {
+        await controller.setVolume(1);
+      } catch (_) {}
+    }
 
     if (!mounted) return;
     setState(() {
