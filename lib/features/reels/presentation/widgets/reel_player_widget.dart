@@ -1,5 +1,6 @@
 import 'dart:async';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -9,7 +10,6 @@ import '../../../../core/utils/responsive.dart';
 import '../../domain/entities/reel.dart';
 import '../player/reel_constants.dart';
 import '../player/reel_controller_pool.dart';
-import '../../../../core/config/app_config.dart';
 
 class ReelPlayerWidget extends StatefulWidget {
   final Reel reel;
@@ -64,7 +64,7 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
 
   Timer? _viewTimer;
   bool _hasRecordedView = false;
-  static final _viewDuration = AppConfig.shortsViewCountDelay;
+  static const _viewDuration = Duration(seconds: 3);
 
   Timer? _loadingTimeoutTimer;
   static const _loadingTimeout = Duration(seconds: 10);
@@ -119,9 +119,11 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
     }
   }
 
-  bool get _shouldPlayNow => widget.isActive && _isVisibleEnough && !_isUserPaused;
+  bool get _shouldPlayNow =>
+      widget.isActive && _isVisibleEnough && !_isUserPaused;
 
-  bool _descriptionExceeds70Percent(BuildContext context, String text, TextStyle style) {
+  bool _descriptionExceeds70Percent(
+      BuildContext context, String text, TextStyle style) {
     if (text.isEmpty) return false;
     final screenHeight = MediaQuery.sizeOf(context).height;
     final screenWidth = MediaQuery.sizeOf(context).width;
@@ -199,7 +201,8 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
       _controller?.removeEventsListener(_onBetterPlayerEvent);
       if (_controller != null) {
         _setupCurrent();
-      } else if (widget.reel.bunnyUrl.isNotEmpty && (widget.isActive || widget.shouldPreload)) {
+      } else if (widget.reel.bunnyUrl.isNotEmpty &&
+          (widget.isActive || widget.shouldPreload)) {
         _setStateSafely(() => _isLoading = false);
       }
     }
@@ -266,7 +269,8 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
     if (widget.reel.bunnyUrl.isEmpty) return;
 
     final currentController = _controller;
-    if (currentController == null || !reelControllerPool.contains(currentController)) {
+    if (currentController == null ||
+        !reelControllerPool.contains(currentController)) {
       return;
     }
 
@@ -291,7 +295,9 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
       return;
     }
 
-    if (!mounted || _controller != currentController || !reelControllerPool.contains(currentController)) {
+    if (!mounted ||
+        _controller != currentController ||
+        !reelControllerPool.contains(currentController)) {
       return;
     }
     // Keep loading until first real progress event arrives from native player.
@@ -401,10 +407,11 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
   void _onProgressBarTap(double tapPosition, double totalWidth) {
     if (_durationSeconds <= 0) return;
     if (totalWidth <= 0) return;
-    
+
     final progress = (1.0 - (tapPosition / totalWidth)).clamp(0.0, 1.0);
-    final targetSeconds = (progress * _durationSeconds).round().clamp(0, _durationSeconds);
-    
+    final targetSeconds =
+        (progress * _durationSeconds).round().clamp(0, _durationSeconds);
+
     _seekToSeconds(targetSeconds);
   }
 
@@ -457,7 +464,8 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
 
   Widget _buildDescription(BuildContext context, {double? maxWidth}) {
     final screenWidth = MediaQuery.sizeOf(context).width;
-    final effectiveMaxWidth = maxWidth ?? (screenWidth * _descriptionMaxWidthFactor);
+    final effectiveMaxWidth =
+        maxWidth ?? (screenWidth * _descriptionMaxWidthFactor);
     final description = widget.reel.description.isNotEmpty
         ? widget.reel.description
         : 'تعلم كيفية نطق الحروف';
@@ -465,7 +473,9 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
       color: Colors.white.withOpacity(0.7),
       fontSize: Responsive.fontSize(context, 13),
     );
-    final shouldTruncate = _descriptionExceeds70Percent(context, description, style) && !_descriptionExpanded;
+    final shouldTruncate =
+        _descriptionExceeds70Percent(context, description, style) &&
+            !_descriptionExpanded;
     final constraints = BoxConstraints(maxWidth: effectiveMaxWidth);
 
     if (!shouldTruncate) {
@@ -520,7 +530,8 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
 
-    final showPausedOverlay = _isUserPaused || (!_shouldPlayNow && widget.isActive);
+    final showPausedOverlay =
+        _isUserPaused || (!_shouldPlayNow && widget.isActive);
 
     return VisibilityDetector(
       key: ValueKey('reel_visibility_${widget.reel.id}'),
@@ -540,7 +551,6 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
               BetterPlayer(controller: _controller!)
             else
               _buildThumbnail(context),
-
             if (showPausedOverlay)
               IgnorePointer(
                 child: Center(
@@ -558,317 +568,327 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
                   ),
                 ),
               ),
-
-          if (_showLikeHeart)
-            IgnorePointer(
-              child: Center(
-                child: Icon(
-                  Icons.favorite,
-                  color: Colors.red,
-                  size: Responsive.iconSize(context, 100),
+            if (_showLikeHeart)
+              IgnorePointer(
+                child: Center(
+                  child: Icon(
+                    Icons.favorite,
+                    color: Colors.red,
+                    size: Responsive.iconSize(context, 100),
+                  ),
                 ),
               ),
-            ),
-
-          if (_isLoading && widget.reel.bunnyUrl.isNotEmpty && widget.isActive)
-            IgnorePointer(
-              child: Center(
-                child: CircularProgressIndicator(
-                  color: const Color(0xFFFFC107),
-                  strokeWidth: Responsive.width(context, 2),
+            if (_isLoading &&
+                widget.reel.bunnyUrl.isNotEmpty &&
+                widget.isActive)
+              IgnorePointer(
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: const Color(0xFFFFC107),
+                    strokeWidth: Responsive.width(context, 2),
+                  ),
                 ),
               ),
-            ),
-
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: Responsive.height(context, 250),
-            child: IgnorePointer(
-              child: Container(
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                      Color(0xFF1A1A1A),
-                      Colors.transparent,
-                    ],
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: Responsive.height(context, 250),
+              child: IgnorePointer(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Color(0xFF1A1A1A),
+                        Colors.transparent,
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: SafeArea(
-              top: false,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(height: Responsive.height(context, 2)),
-                  ValueListenableBuilder<int>(
-                    valueListenable: _progressSecondsNotifier,
-                    builder: (context, seconds, _) {
-                      final progress = _durationSeconds > 0
-                          ? (seconds / _durationSeconds).clamp(0.0, 1.0)
-                          : 0.0;
-                      return LayoutBuilder(
-                        builder: (context, constraints) {
-                          final barWidth = constraints.maxWidth;
-                          return GestureDetector(
-                            onTap: () {},
-                            onTapDown: (details) {
-                              final RenderBox? box = context.findRenderObject() as RenderBox?;
-                              if (box != null && box.hasSize) {
-                                final localPos = box.globalToLocal(details.globalPosition);
-                                final tapX = localPos.dx.clamp(0.0, barWidth);
-                                _onProgressBarTap(tapX, barWidth);
-                              }
-                            },
-                            onHorizontalDragStart: (details) {
-                              final RenderBox? box =
-                                  context.findRenderObject() as RenderBox?;
-                              if (box != null && box.hasSize) {
-                                final localPos =
-                                    box.globalToLocal(details.globalPosition);
-                                final dragX = localPos.dx.clamp(0.0, barWidth);
-                                _onProgressBarDragUpdate(dragX, barWidth);
-                              }
-                            },
-                            onHorizontalDragUpdate: (details) {
-                              final RenderBox? box =
-                                  context.findRenderObject() as RenderBox?;
-                              if (box != null && box.hasSize) {
-                                final localPos =
-                                    box.globalToLocal(details.globalPosition);
-                                final dragX = localPos.dx.clamp(0.0, barWidth);
-                                _onProgressBarDragUpdate(dragX, barWidth);
-                              }
-                            },
-                            onHorizontalDragEnd: (_) {
-                              final target = _dragSeekTarget;
-                              if (target != null) {
-                                _seekToSeconds(target);
-                                _dragSeekTarget = null;
-                              }
-                            },
-                            behavior: HitTestBehavior.opaque,
-                            child: Container(
-                              height: Responsive.height(context, 20),
-                              padding: EdgeInsets.symmetric(
-                                vertical: Responsive.height(context, 8.5),
-                              ),
-                              child: Row(
-                                textDirection: TextDirection.rtl,
-                                children: [
-                                  Container(
-                                    width: barWidth * progress,
-                                    height: 3,
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFFFFC107),
-                                      borderRadius: BorderRadius.circular(2),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: Container(
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: SafeArea(
+                top: false,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    SizedBox(height: Responsive.height(context, 2)),
+                    ValueListenableBuilder<int>(
+                      valueListenable: _progressSecondsNotifier,
+                      builder: (context, seconds, _) {
+                        final progress = _durationSeconds > 0
+                            ? (seconds / _durationSeconds).clamp(0.0, 1.0)
+                            : 0.0;
+                        return LayoutBuilder(
+                          builder: (context, constraints) {
+                            final barWidth = constraints.maxWidth;
+                            return GestureDetector(
+                              onTap: () {},
+                              onTapDown: (details) {
+                                final RenderBox? box =
+                                    context.findRenderObject() as RenderBox?;
+                                if (box != null && box.hasSize) {
+                                  final localPos =
+                                      box.globalToLocal(details.globalPosition);
+                                  final tapX = localPos.dx.clamp(0.0, barWidth);
+                                  _onProgressBarTap(tapX, barWidth);
+                                }
+                              },
+                              onHorizontalDragStart: (details) {
+                                final RenderBox? box =
+                                    context.findRenderObject() as RenderBox?;
+                                if (box != null && box.hasSize) {
+                                  final localPos =
+                                      box.globalToLocal(details.globalPosition);
+                                  final dragX =
+                                      localPos.dx.clamp(0.0, barWidth);
+                                  _onProgressBarDragUpdate(dragX, barWidth);
+                                }
+                              },
+                              onHorizontalDragUpdate: (details) {
+                                final RenderBox? box =
+                                    context.findRenderObject() as RenderBox?;
+                                if (box != null && box.hasSize) {
+                                  final localPos =
+                                      box.globalToLocal(details.globalPosition);
+                                  final dragX =
+                                      localPos.dx.clamp(0.0, barWidth);
+                                  _onProgressBarDragUpdate(dragX, barWidth);
+                                }
+                              },
+                              onHorizontalDragEnd: (_) {
+                                final target = _dragSeekTarget;
+                                if (target != null) {
+                                  _seekToSeconds(target);
+                                  _dragSeekTarget = null;
+                                }
+                              },
+                              behavior: HitTestBehavior.opaque,
+                              child: Container(
+                                height: Responsive.height(context, 20),
+                                padding: EdgeInsets.symmetric(
+                                  vertical: Responsive.height(context, 8.5),
+                                ),
+                                child: Row(
+                                  textDirection: TextDirection.rtl,
+                                  children: [
+                                    Container(
+                                      width: barWidth * progress,
                                       height: 3,
                                       decoration: BoxDecoration(
-                                        color: Colors.white24,
+                                        color: const Color(0xFFFFC107),
                                         borderRadius: BorderRadius.circular(2),
                                       ),
+                                    ),
+                                    Expanded(
+                                      child: Container(
+                                        height: 3,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white24,
+                                          borderRadius:
+                                              BorderRadius.circular(2),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        );
+                      },
+                    ),
+                    if (_isUserPaused && _durationSeconds > 0) ...[
+                      SizedBox(height: Responsive.height(context, 6)),
+                      ValueListenableBuilder<int>(
+                        valueListenable: _progressSecondsNotifier,
+                        builder: (context, seconds, _) {
+                          return Padding(
+                            padding: EdgeInsets.only(
+                              top: Responsive.height(context, 6),
+                              left: Responsive.width(context, 16),
+                              right: Responsive.width(context, 16),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _formatDuration(seconds),
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: Responsive.fontSize(context, 12),
+                                  ),
+                                ),
+                                Text(
+                                  '${_formatDuration((_durationSeconds - seconds).clamp(0, _durationSeconds))} متبقي',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: Responsive.fontSize(context, 12),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: Responsive.width(context, 16),
+              right: Responsive.width(context, 16),
+              bottom: bottomPadding + Responsive.height(context, 40),
+              child: IgnorePointer(
+                ignoring: false,
+                child: Builder(
+                  builder: (context) {
+                    final isTablet = Responsive.isTablet(context);
+
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: widget.onLogoTap,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildAvatar(context),
+                                  SizedBox(width: Responsive.width(context, 8)),
+                                  Flexible(
+                                    child: Column(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          widget.reel.owner.name.isNotEmpty
+                                              ? widget.reel.owner.name
+                                              : 'ليرنفاي',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: Responsive.fontSize(
+                                                context, 16),
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        SizedBox(
+                                            height:
+                                                Responsive.spacing(context, 6)),
+                                        _buildDescription(context),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
                             ),
-                          );
-                        },
-                      );
-                    },
-                  ),
-                  if (_isUserPaused && _durationSeconds > 0) ...[
-                    SizedBox(height: Responsive.height(context, 6)),
-                    ValueListenableBuilder<int>(
-                      valueListenable: _progressSecondsNotifier,
-                      builder: (context, seconds, _) {
-                        return Padding(
-                          padding: EdgeInsets.only(
-                            top: Responsive.height(context, 6),
-                            left: Responsive.width(context, 16),
-                            right: Responsive.width(context, 16),
-                          ),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Text(
-                                _formatDuration(seconds),
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: Responsive.fontSize(context, 12),
+                            SizedBox(height: Responsive.spacing(context, 14)),
+                            GestureDetector(
+                              onTap: () {
+                                debugPrint(
+                                    'ReelPlayerWidget: Subscribe button tapped');
+                                if (widget.onSubscribeClick != null) {
+                                  debugPrint(
+                                      'ReelPlayerWidget: Calling onSubscribeClick');
+                                  widget.onSubscribeClick!();
+                                } else {
+                                  debugPrint(
+                                      'ReelPlayerWidget: onSubscribeClick is null, calling onRedirect');
+                                  widget.onRedirect();
+                                }
+                              },
+                              child: Container(
+                                padding: Responsive.padding(context,
+                                    horizontal: 24, vertical: 12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFC107),
+                                  borderRadius: BorderRadius.circular(
+                                      Responsive.radius(context, 16)),
                                 ),
-                              ),
-                              Text(
-                                '${_formatDuration((_durationSeconds - seconds).clamp(0, _durationSeconds))} متبقي',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: Responsive.fontSize(context, 12),
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-
-          Positioned(
-            left: Responsive.width(context, 16),
-            right: Responsive.width(context, 16),
-            bottom: bottomPadding + Responsive.height(context, 40),
-            child: IgnorePointer(
-              ignoring: false,
-              child: Builder(
-                builder: (context) {
-                  final isTablet = Responsive.isTablet(context);
-
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          GestureDetector(
-                            onTap: widget.onLogoTap,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildAvatar(context),
-                                SizedBox(width: Responsive.width(context, 8)),
-                                Flexible(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.start,
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text(
-                                        widget.reel.owner.name.isNotEmpty
-                                            ? widget.reel.owner.name
-                                            : 'ليرنفاي',
-                                        style: TextStyle(
-                                          color: Colors.white,
-                                          fontSize:
-                                              Responsive.fontSize(context, 16),
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                        overflow: TextOverflow.ellipsis,
-                                      ),
-                                      SizedBox(
-                                          height: Responsive.spacing(context, 6)),
-                                      _buildDescription(context),
-                                    ],
+                                child: Text(
+                                  'اشترك من هنا',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: Responsive.fontSize(context, 14),
                                   ),
                                 ),
-                              ],
-                            ),
-                          ),
-
-                        SizedBox(height: Responsive.spacing(context, 14)),
-                        GestureDetector(
-                          onTap: () {
-                            debugPrint('ReelPlayerWidget: Subscribe button tapped');
-                            if (widget.onSubscribeClick != null) {
-                              debugPrint('ReelPlayerWidget: Calling onSubscribeClick');
-                              widget.onSubscribeClick!();
-                            } else {
-                              debugPrint('ReelPlayerWidget: onSubscribeClick is null, calling onRedirect');
-                              widget.onRedirect();
-                            }
-                          },
-                          child: Container(
-                            padding: Responsive.padding(context,
-                                horizontal: 24, vertical: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFC107),
-                              borderRadius: BorderRadius.circular(
-                                  Responsive.radius(context, 16)),
-                            ),
-                            child: Text(
-                              'اشترك من هنا',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: Responsive.fontSize(context, 14),
                               ),
                             ),
-                          ),
+                          ],
+                        ),
+                        const Spacer(),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            GestureDetector(
+                              onTap: widget.onLike,
+                              child: Icon(
+                                Icons.favorite,
+                                color:
+                                    widget.isLiked ? Colors.red : Colors.white,
+                                size: Responsive.iconSize(context, 38),
+                              ),
+                            ),
+                            SizedBox(height: Responsive.spacing(context, 4)),
+                            IgnorePointer(
+                              child: Text(
+                                _formatCount(widget.likeCount),
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: Responsive.fontSize(context, 13),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                                height: Responsive.spacing(
+                                    context, isTablet ? 5 : 20)),
+                            GestureDetector(
+                              onTap: widget.onShare,
+                              child: Transform(
+                                alignment: Alignment.center,
+                                transform: Matrix4.rotationY(3.14159),
+                                child: Icon(
+                                  Icons.reply,
+                                  color: Colors.white,
+                                  size: Responsive.iconSize(context, 32),
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: Responsive.spacing(context, 4)),
+                            IgnorePointer(
+                              child: Text(
+                                'مشاركة',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: Responsive.fontSize(context, 11),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
-                    const Spacer(),
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        GestureDetector(
-                          onTap: widget.onLike,
-                          child: Icon(
-                            Icons.favorite,
-                            color: widget.isLiked ? Colors.red : Colors.white,
-                            size: Responsive.iconSize(context, 38),
-                          ),
-                        ),
-                        SizedBox(height: Responsive.spacing(context, 4)),
-                        IgnorePointer(
-                          child: Text(
-                            _formatCount(widget.likeCount),
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: Responsive.fontSize(context, 13),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: Responsive.spacing(context, isTablet?5:20)),
-                        GestureDetector(
-                          onTap: widget.onShare,
-                          child: Transform(
-                            alignment: Alignment.center,
-                            transform: Matrix4.rotationY(3.14159),
-                            child: Icon(
-                              Icons.reply,
-                              color: Colors.white,
-                              size: Responsive.iconSize(context, 32),
-                            ),
-                          ),
-                        ),
-                        SizedBox(height: Responsive.spacing(context, 4)),
-                        IgnorePointer(
-                          child: Text(
-                            'مشاركة',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: Responsive.fontSize(context, 11),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                );
-              },
+                    );
+                  },
+                ),
+              ),
             ),
-            ),
-          ),
           ],
         ),
       ),
@@ -923,14 +943,13 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
   Widget _buildAvatar(BuildContext context) {
     final media = MediaQuery.of(context);
     final isPortrait = media.orientation == Orientation.portrait;
-    final isTabletPortrait =
-        isPortrait && media.size.shortestSide >= 600;
+    final isTabletPortrait = isPortrait && media.size.shortestSide >= 600;
     final isTablet = Responsive.isTablet(context);
 
     final size = isTablet
         ? (isTabletPortrait
-        ? Responsive.width(context, 36)
-        : Responsive.width(context, 24))
+            ? Responsive.width(context, 36)
+            : Responsive.width(context, 24))
         : Responsive.width(context, 36);
 
     Widget defaultAvatar() {
@@ -951,7 +970,8 @@ class _ReelPlayerWidgetState extends State<ReelPlayerWidget>
       return defaultAvatar();
     }
 
-    final cacheSize = (size * MediaQuery.of(context).devicePixelRatio).round().clamp(72, 256);
+    final cacheSize =
+        (size * MediaQuery.of(context).devicePixelRatio).round().clamp(72, 256);
     return ClipOval(
       child: Container(
         width: size,

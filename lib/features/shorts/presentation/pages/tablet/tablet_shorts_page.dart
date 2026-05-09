@@ -1,9 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import '../../../../../../core/config/app_config.dart';
 import '../../../../../../core/di/injection_container.dart';
 import '../../../../../../core/routing/app_router.dart';
 import '../../../../authentication/data/datasources/auth_local_datasource.dart';
@@ -30,8 +27,6 @@ class _TabletShortsPageState extends State<TabletShortsPage> {
   ShortsBloc? _shortsBloc;
   bool _hasLoadedOnce = false;
   bool _isSubscribed = false;
-  int? _pendingReelId;
-  Timer? _viewMarkTimer;
 
   Future<void> _bootstrapShortsAccess() async {
     try {
@@ -46,24 +41,9 @@ class _TabletShortsPageState extends State<TabletShortsPage> {
 
   @override
   void dispose() {
-    _viewMarkTimer?.cancel();
     _reelsBloc?.close();
     _shortsBloc?.close();
     super.dispose();
-  }
-
-  void _scheduleViewedMark(int reelId) {
-    _pendingReelId = reelId;
-    _viewMarkTimer?.cancel();
-    _viewMarkTimer = Timer(AppConfig.shortsViewCountDelay, () {
-      if (!mounted || _pendingReelId != reelId) return;
-      context.read<ShortsBloc>().add(
-            MarkShortViewedEvent(
-              reelId: reelId,
-              isSubscribed: _isSubscribed,
-            ),
-          );
-    });
   }
 
   Future<void> _openSubscription() async {
@@ -81,39 +61,51 @@ class _TabletShortsPageState extends State<TabletShortsPage> {
   Widget build(BuildContext context) {
     if (!_hasLoadedOnce) {
       _hasLoadedOnce = true;
-      _reelsBloc = sl<ReelsBloc>()..add(const LoadReelsFeedEvent(perPage: 10));
       _shortsBloc = sl<ShortsBloc>();
       _bootstrapShortsAccess();
     }
 
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider<ReelsBloc>.value(value: _reelsBloc!),
-        BlocProvider<ShortsBloc>.value(value: _shortsBloc!),
-      ],
+    return BlocProvider<ShortsBloc>.value(
+      value: _shortsBloc!,
       child: BlocBuilder<ShortsBloc, ShortsState>(
         builder: (context, shortsState) {
-          final isLocked = shortsState is ShortsLocked;
+          if (shortsState is ShortsLoading) {
+            return const Scaffold(
+              backgroundColor: Colors.black,
+              body: SizedBox.expand(),
+            );
+          }
+
+          if (shortsState is ShortsLocked) {
+            return Scaffold(
+              backgroundColor: Colors.black,
+              body: Stack(
+                children: [
+                  const SizedBox.expand(),
+                  Positioned.fill(
+                    child: ShortsLockOverlay(onSubscribe: _openSubscription),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          _reelsBloc ??= sl<ReelsBloc>()
+            ..add(const LoadReelsFeedEvent(perPage: 10));
 
           return Scaffold(
             backgroundColor: Colors.black,
-            body: Stack(
-              children: [
-                ReelsFeedPage(
-                  initialIndex: widget.initialIndex ?? 0,
-                  showBackButton: false,
-                  freeReelsLimit: AppConfig.freeShortsThreshold,
-                  isLimitEnabled: false,
-                  forceLocked: false,
-                  isTabActive: true,
-                  onReelViewed: (reelId) {
-                    _scheduleViewedMark(reelId);
-                  },
-                ),
-                if (isLocked)
-                  Positioned.fill(
-                      child: ShortsLockOverlay(onSubscribe: _openSubscription)),
-              ],
+            body: BlocProvider<ReelsBloc>.value(
+              value: _reelsBloc!,
+              child: ReelsFeedPage(
+                initialIndex: widget.initialIndex ?? 0,
+                showBackButton: false,
+                freeReelsLimit: 0,
+                isLimitEnabled: false,
+                forceLocked: false,
+                isTabActive: true,
+                onReelViewed: (_) {},
+              ),
             ),
           );
         },

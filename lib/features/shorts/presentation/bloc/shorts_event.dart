@@ -15,16 +15,3 @@ class LoadShortsAccessEvent extends ShortsEvent {
   @override
   List<Object?> get props => [isSubscribed];
 }
-
-class MarkShortViewedEvent extends ShortsEvent {
-  final int reelId;
-  final bool isSubscribed;
-
-  const MarkShortViewedEvent({
-    required this.reelId,
-    required this.isSubscribed,
-  });
-
-  @override
-  List<Object?> get props => [reelId, isSubscribed];
-}

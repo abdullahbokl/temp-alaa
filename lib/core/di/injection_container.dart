@@ -71,9 +71,6 @@ import '../../features/transactions/data/repositories/transactions_repository_im
 import '../../features/transactions/domain/repositories/transactions_repository.dart';
 import '../../features/transactions/domain/usecases/get_my_transactions_usecase.dart';
 import '../../features/transactions/presentation/bloc/transactions_bloc.dart';
-import '../../features/shorts/data/repositories/shorts_repository_impl.dart';
-import '../../features/shorts/data/services/shorts_config_service.dart';
-import '../../features/shorts/domain/repositories/shorts_repository.dart';
 import '../../features/shorts/domain/usecases/check_shorts_access_usecase.dart';
 import '../../features/shorts/presentation/bloc/shorts_bloc.dart';
 import '../network/dio_client.dart';
@@ -323,17 +320,10 @@ void _initReels() {
 }
 
 void _initShorts() {
-  sl.registerLazySingleton(() => ShortsConfigService(sl()));
-
-  sl.registerLazySingleton<ShortsRepository>(
-    () => ShortsRepositoryImpl(sl()),
-  );
-
-  sl.registerLazySingleton(() => CheckShortsAccessUseCase(sl()));
+  sl.registerLazySingleton(() => const CheckShortsAccessUseCase());
 
   sl.registerFactory(
     () => ShortsBloc(
-      repository: sl(),
       checkShortsAccessUseCase: sl(),
     ),
   );

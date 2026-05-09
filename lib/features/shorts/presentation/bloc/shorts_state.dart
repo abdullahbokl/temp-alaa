@@ -12,31 +12,9 @@ class ShortsLoading extends ShortsState {
 }
 
 class ShortsLoaded extends ShortsState {
-  final int viewedCount;
-  final int freeThreshold;
-  final bool isLimitEnabled;
-
-  const ShortsLoaded({
-    required this.viewedCount,
-    required this.freeThreshold,
-    required this.isLimitEnabled,
-  });
-
-  @override
-  List<Object?> get props => [viewedCount, freeThreshold, isLimitEnabled];
+  const ShortsLoaded();
 }
 
 class ShortsLocked extends ShortsState {
-  final int viewedCount;
-  final int freeThreshold;
-  final bool isLimitEnabled;
-
-  const ShortsLocked({
-    required this.viewedCount,
-    required this.freeThreshold,
-    required this.isLimitEnabled,
-  });
-
-  @override
-  List<Object?> get props => [viewedCount, freeThreshold, isLimitEnabled];
+  const ShortsLocked();
 }
