@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../features/about/presentation/pages/about_page.dart';
+import '../../features/authentication/presentation/bloc/auth_bloc.dart';
+import '../../features/authentication/presentation/bloc/auth_state.dart';
 import '../../features/onboarding/presentation/pages/content_preferences_page.dart';
 import '../../features/authentication/presentation/pages/email_verification_page.dart';
 import '../../features/authentication/presentation/pages/register/complete_profile_page.dart';
@@ -101,19 +103,19 @@ class AppRouter {
         return MaterialPageRoute(builder: (_) => const HomePage());
 
       case menu:
-        return MaterialPageRoute(builder: (_) => const MenuPage());
+        return _protectedRoute(settings, const MenuPage());
 
       case profile:
-        return MaterialPageRoute(builder: (_) => const ProfilePage());
+        return _protectedRoute(settings, const ProfilePage());
 
       case subscriptions:
-        return MaterialPageRoute(builder: (_) => const SubscriptionsPage());
+        return _protectedRoute(settings, const SubscriptionsPage());
 
       case certificates:
-        return MaterialPageRoute(builder: (_) => const CertificatesPage());
+        return _protectedRoute(settings, const CertificatesPage());
 
       case transactions:
-        return MaterialPageRoute(builder: (_) => const TransactionsPage());
+        return _protectedRoute(settings, const TransactionsPage());
 
       case courses:
         final args = settings.arguments as Map<String, dynamic>?;
@@ -172,6 +174,22 @@ class AppRouter {
           ),
         );
     }
+  }
+
+  static Route<dynamic> _protectedRoute(
+    RouteSettings settings,
+    Widget page,
+  ) {
+    return MaterialPageRoute(
+      settings: settings,
+      builder: (context) {
+        final authState = context.read<AuthBloc>().state;
+        if (authState is! AuthAuthenticated) {
+          return const LoginPage();
+        }
+        return page;
+      },
+    );
   }
 
   static PageRoute _buildAuthPageRoute(

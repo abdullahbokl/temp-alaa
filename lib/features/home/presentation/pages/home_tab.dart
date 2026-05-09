@@ -95,27 +95,27 @@ class _HomeTabContent extends StatelessWidget {
             child: BlocBuilder<HomeBloc, HomeState>(
               buildWhen: (previous, current) => previous != current,
               builder: (context, state) {
-                if (state is HomeLoading) {
-                  if (state.cachedData != null) {
-                    return _buildContent(context, state.cachedData!);
-                  }
-                  return const Center(
-                    child: CircularProgressIndicator(
-                      color: AppColors.primary,
-                    ),
-                  );
-                }
+          if (state is HomeLoading) {
+            if (state.cachedData != null) {
+              return _buildCachedContent(context, state.cachedData!);
+            }
+            return const Center(
+              child: CircularProgressIndicator(
+                color: AppColors.primary,
+              ),
+            );
+          }
 
-                if (state is HomeError) {
-                  if (state.cachedData != null) {
-                    return _buildContent(context, state.cachedData!);
-                  }
-                  return _buildErrorState(context, state.message);
-                }
+          if (state is HomeError) {
+            if (state.cachedData != null) {
+              return _buildCachedContent(context, state.cachedData!);
+            }
+            return _buildErrorState(context, state.message);
+          }
 
-                if (state is HomeLoaded) {
-                  return _buildContent(context, state.homeData);
-                }
+  if (state is HomeLoaded) {
+            return _buildLoadedContent(context, state);
+          }
 
                 return const Center(
                   child: CircularProgressIndicator(
@@ -130,7 +130,52 @@ class _HomeTabContent extends StatelessWidget {
     );
   }
 
-  Widget _buildContent(BuildContext context, HomeData homeData) {
+  Widget _buildCachedContent(BuildContext context, HomeData homeData) {
+    return CustomScrollView(
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        SliverToBoxAdapter(child: SizedBox(height: Responsive.spacing(context, 16))),
+        SliverToBoxAdapter(
+          child: _HomeBannerSection(
+            siteBanners: siteBanners,
+            isLoadingBanners: isLoadingBanners,
+            homeBanners: homeData.banners,
+            onBannerTap: _onBannerTapPlaceholder,
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: _HomeCategoriesSection(
+            categories: homeData.categories,
+            homeData: homeData,
+            onCategoryTap: _onCategoryTap,
+            onSeeAll: () => _navigateToCategoriesPage(context, homeData),
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: _HomePopularCoursesSection(
+            courses: homeData.popularCourses,
+            isLoadingMore: false,
+            hasMore: false,
+            onCourseTap: _onCourseTap,
+            onLoadMore: () {},
+          ),
+        ),
+        SliverToBoxAdapter(
+          child: _HomeFreeCoursesSection(
+            courses: homeData.freeCourses,
+            isLoadingMore: false,
+            hasMore: false,
+            onCourseTap: _onCourseTap,
+            onLoadMore: () {},
+          ),
+        ),
+        SliverToBoxAdapter(child: SizedBox(height: Responsive.spacing(context, 100))),
+      ],
+    );
+  }
+
+  Widget _buildLoadedContent(BuildContext context, HomeLoaded state) {
+    final homeData = state.homeData;
     final categoryEntries = homeData.coursesByCategory.entries.toList(growable: false);
     return RefreshIndicator(
       onRefresh: () async {
@@ -160,9 +205,21 @@ class _HomeTabContent extends StatelessWidget {
             ),
           ),
           SliverToBoxAdapter(
-            child: _HomePopularCoursesSection(
-              popularCourses: homeData.popularCourses,
+            child: _HomeLatestCoursesSection(
+              courses: state.latestCourses.items,
+              isLoadingMore: state.isLoadingMoreLatest,
+              hasMore: state.latestCourses.hasMore,
               onCourseTap: _onCourseTap,
+              onLoadMore: () => context.read<HomeBloc>().add(LoadMoreLatestCoursesEvent()),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: _HomePopularCoursesSection(
+              courses: state.popularCourses.items,
+              isLoadingMore: state.isLoadingMorePopular,
+              hasMore: state.popularCourses.hasMore,
+              onCourseTap: _onCourseTap,
+              onLoadMore: () => context.read<HomeBloc>().add(LoadMorePopularCoursesEvent()),
             ),
           ),
           if (homeData.categoryCourseBlocks.isNotEmpty)
@@ -192,9 +249,11 @@ class _HomeTabContent extends StatelessWidget {
             ),
           SliverToBoxAdapter(
             child: _HomeFreeCoursesSection(
-              freeCourses: homeData.freeCourses,
+              courses: state.freeCourses.items,
+              isLoadingMore: state.isLoadingMoreFree,
+              hasMore: state.freeCourses.hasMore,
               onCourseTap: _onCourseTap,
-              buildCoursesGrid: _buildCoursesGrid,
+              onLoadMore: () => context.read<HomeBloc>().add(LoadMoreFreeCoursesEvent()),
             ),
           ),
           SliverToBoxAdapter(
@@ -441,18 +500,86 @@ class _HomeCategoriesSection extends StatelessWidget {
   }
 }
 
-class _HomePopularCoursesSection extends StatelessWidget {
-  final List<Course> popularCourses;
+class _HomeLatestCoursesSection extends StatelessWidget {
+  final List<Course> courses;
+  final bool isLoadingMore;
+  final bool hasMore;
   final void Function(BuildContext, Course) onCourseTap;
+  final VoidCallback onLoadMore;
 
-  const _HomePopularCoursesSection({
-    required this.popularCourses,
+  const _HomeLatestCoursesSection({
+    required this.courses,
+    required this.isLoadingMore,
+    required this.hasMore,
     required this.onCourseTap,
+    required this.onLoadMore,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (popularCourses.isEmpty) return const SizedBox.shrink();
+    if (courses.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader(title: 'أحدث الدورات'),
+        SizedBox(height: Responsive.spacing(context, 12)),
+        SizedBox(
+          height: Responsive.height(context, 130),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: Responsive.padding(context, horizontal: 16),
+            itemCount: courses.length + (hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == courses.length) {
+                if (!isLoadingMore) onLoadMore();
+                return Padding(
+                  padding: Responsive.padding(context, horizontal: 16),
+                  child: Center(
+                    child: SizedBox(
+                      width: Responsive.width(context, 20),
+                      height: Responsive.width(context, 20),
+                      child: const CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    ),
+                  ),
+                );
+              }
+              final course = courses[index];
+              return RepaintBoundary(
+                child: Padding(
+                  padding: Responsive.padding(context, left: 20),
+                  child: CourseGridCard(
+                    course: course,
+                    onTap: () => onCourseTap(context, course),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        SizedBox(height: Responsive.spacing(context, 24)),
+      ],
+    );
+  }
+}
+
+class _HomePopularCoursesSection extends StatelessWidget {
+  final List<Course> courses;
+  final bool isLoadingMore;
+  final bool hasMore;
+  final void Function(BuildContext, Course) onCourseTap;
+  final VoidCallback onLoadMore;
+
+  const _HomePopularCoursesSection({
+    required this.courses,
+    required this.isLoadingMore,
+    required this.hasMore,
+    required this.onCourseTap,
+    required this.onLoadMore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (courses.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -469,7 +596,7 @@ class _HomePopularCoursesSection extends StatelessWidget {
                 height: Responsive.height(context, 150),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: popularCourses
+                  children: courses
                       .map(
                         (course) => RepaintBoundary(
                           child: Padding(
@@ -495,25 +622,61 @@ class _HomePopularCoursesSection extends StatelessWidget {
 }
 
 class _HomeFreeCoursesSection extends StatelessWidget {
-  final List<Course> freeCourses;
+  final List<Course> courses;
+  final bool isLoadingMore;
+  final bool hasMore;
   final void Function(BuildContext, Course) onCourseTap;
-  final Widget Function(BuildContext, List<Course>) buildCoursesGrid;
+  final VoidCallback onLoadMore;
 
   const _HomeFreeCoursesSection({
-    required this.freeCourses,
+    required this.courses,
+    required this.isLoadingMore,
+    required this.hasMore,
     required this.onCourseTap,
-    required this.buildCoursesGrid,
+    required this.onLoadMore,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (freeCourses.isEmpty) return const SizedBox.shrink();
+    if (courses.isEmpty) return const SizedBox.shrink();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SectionHeader(title: 'دورات مجانية', onSeeAll: () {}),
         SizedBox(height: Responsive.spacing(context, 12)),
-        buildCoursesGrid(context, freeCourses),
+        SizedBox(
+          height: Responsive.height(context, 130),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: Responsive.padding(context, horizontal: 16),
+            itemCount: courses.length + (hasMore ? 1 : 0),
+            itemBuilder: (context, index) {
+              if (index == courses.length) {
+                if (!isLoadingMore) onLoadMore();
+                return Padding(
+                  padding: Responsive.padding(context, horizontal: 16),
+                  child: Center(
+                    child: SizedBox(
+                      width: Responsive.width(context, 20),
+                      height: Responsive.width(context, 20),
+                      child: const CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary),
+                    ),
+                  ),
+                );
+              }
+              final course = courses[index];
+              return RepaintBoundary(
+                child: Padding(
+                  padding: Responsive.padding(context, left: 20),
+                  child: CourseGridCard(
+                    course: course,
+                    onTap: () => onCourseTap(context, course),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
         SizedBox(height: Responsive.spacing(context, 24)),
       ],
     );

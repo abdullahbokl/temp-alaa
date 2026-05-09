@@ -8,6 +8,7 @@ import '../constants/app_constants.dart';
 import '../storage/secure_storage_service.dart';
 import 'cache_service.dart';
 import 'request_auth.dart';
+import 'token_refresh_interceptor.dart';
 
 class DioClient {
   late final Dio _dio;
@@ -32,6 +33,10 @@ class DioClient {
     );
 
     _dio.interceptors.add(_AuthInterceptor(_secureStorage));
+    _dio.interceptors.add(TokenRefreshInterceptor(
+      secureStorage: _secureStorage,
+      mainDio: _dio,
+    ));
     _dio.interceptors.add(_CacheUserInterceptor());
 
     final cacheOptions = CacheService.cacheOptions;
@@ -233,39 +238,48 @@ class _AuthInterceptor extends Interceptor {
   ) async {
     final authRequirement = _readAuthRequirement(options);
 
-    if (authRequirement == AuthRequirement.public) {
-      options.extra[RequestAuthMeta.authAttachedKey] = false;
-      handler.next(options);
-      return;
-    }
-
     final token = await _secureStorage.getAccessToken();
     final hasToken = token != null && token.isNotEmpty;
 
-    if (authRequirement == AuthRequirement.protected && !hasToken) {
-      handler.reject(
-        DioException(
-          requestOptions: options,
-          response: Response(
-            requestOptions: options,
-            statusCode: 401,
-            data: {'message': 'يجب تسجيل الدخول أولاً'},
-          ),
-          type: DioExceptionType.badResponse,
-          error: 'Missing token for protected endpoint',
-        ),
-      );
-      return;
-    }
+    switch (authRequirement) {
+      case AuthRequirement.public:
+      case AuthRequirement.guest:
+        options.extra[RequestAuthMeta.authAttachedKey] = false;
+        handler.next(options);
+        return;
 
-    if (hasToken) {
-      options.headers['Authorization'] = 'Bearer $token';
-      options.extra[RequestAuthMeta.authAttachedKey] = true;
-    } else {
-      options.extra[RequestAuthMeta.authAttachedKey] = false;
-    }
+      case AuthRequirement.optional:
+        if (hasToken) {
+          options.headers['Authorization'] = 'Bearer $token';
+          options.extra[RequestAuthMeta.authAttachedKey] = true;
+        } else {
+          options.extra[RequestAuthMeta.authAttachedKey] = false;
+        }
+        handler.next(options);
+        return;
 
-    handler.next(options);
+      case AuthRequirement.protected:
+        if (hasToken) {
+          options.headers['Authorization'] = 'Bearer $token';
+          options.extra[RequestAuthMeta.authAttachedKey] = true;
+          handler.next(options);
+        } else {
+          options.extra[RequestAuthMeta.authAttachedKey] = false;
+          handler.reject(
+            DioException(
+              requestOptions: options,
+              error: 'Authentication required',
+              type: DioExceptionType.unknown,
+              response: Response(
+                requestOptions: options,
+                statusCode: 401,
+                statusMessage: 'Unauthorized',
+              ),
+            ),
+          );
+        }
+        return;
+    }
   }
 
   @override

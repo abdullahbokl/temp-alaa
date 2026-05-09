@@ -20,6 +20,9 @@ import '../../features/home/data/datasources/home_remote_datasource.dart';
 import '../../features/home/data/repositories/home_repository_impl.dart';
 import '../../features/home/domain/repositories/home_repository.dart';
 import '../../features/home/domain/usecases/get_home_data_usecase.dart';
+import '../../features/home/domain/usecases/get_latest_courses_usecase.dart';
+import '../../features/home/domain/usecases/get_free_courses_usecase.dart';
+import '../../features/home/domain/usecases/get_popular_courses_usecase.dart';
 import '../../features/home/presentation/bloc/home_bloc.dart';
 import '../../features/subscriptions/data/datasources/subscription_remote_datasource.dart';
 import '../../features/subscriptions/data/repositories/subscription_repository_impl.dart';
@@ -171,10 +174,16 @@ void _initHome() {
   );
 
   sl.registerLazySingleton(() => GetHomeDataUseCase(sl()));
+  sl.registerLazySingleton(() => GetLatestCoursesUseCase(sl()));
+  sl.registerLazySingleton(() => GetFreeCoursesUseCase(sl()));
+  sl.registerLazySingleton(() => GetPopularCoursesUseCase(sl()));
 
   sl.registerFactory(
-        () => HomeBloc(
+    () => HomeBloc(
       getHomeDataUseCase: sl(),
+      getLatestCoursesUseCase: sl(),
+      getFreeCoursesUseCase: sl(),
+      getPopularCoursesUseCase: sl(),
     ),
   );
 }

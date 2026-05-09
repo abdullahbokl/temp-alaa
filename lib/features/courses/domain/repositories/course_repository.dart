@@ -13,7 +13,9 @@ abstract class CourseRepository {
 
   Future<Either<Failure, Course>> getCourseById({required int id});
 
-  Future<Either<Failure, List<Course>>> getMyCourses();
+  Future<Either<Failure, PaginatedList<Course>>> getMyCourses({
+    required PaginationParams pagination,
+  });
 }
 
 

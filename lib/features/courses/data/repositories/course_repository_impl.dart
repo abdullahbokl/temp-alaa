@@ -47,9 +47,11 @@ class CourseRepositoryImpl implements CourseRepository {
   }
 
   @override
-  Future<Either<Failure, List<Course>>> getMyCourses() async {
+  Future<Either<Failure, PaginatedList<Course>>> getMyCourses({
+    required PaginationParams pagination,
+  }) async {
     try {
-      final courses = await remoteDataSource.getMyCourses();
+      final courses = await remoteDataSource.getMyCourses(pagination: pagination);
       return Right(courses);
     } on ServerException catch (e) {
       return Left(ServerFailure(e.message));

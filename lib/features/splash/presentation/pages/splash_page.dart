@@ -1,7 +1,7 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/di/injection_container.dart';
@@ -82,9 +82,9 @@ class _SplashPageState extends State<SplashPage>
   Future<void> _checkFirstTime() async {
     final hiveService = sl<HiveService>();
     final isFirstTime = await hiveService.getData(AppConstants.keyIsFirstTime);
-    
+
     if (!mounted) return;
-    
+
     setState(() {
       _isFirstTime = isFirstTime == null || isFirstTime == true;
     });
@@ -140,43 +140,42 @@ class _SplashPageState extends State<SplashPage>
     final topPadding = MediaQuery.of(context).padding.top;
 
     return Column(
-              children: [
-                SizedBox(height: (screenHeight - topPadding) * 0.15),
-                const AnimatedLogo(),
+      children: [
+        SizedBox(height: (screenHeight - topPadding) * 0.15),
+        const AnimatedLogo(),
         const SizedBox(height: 30),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 50),
-                  child: RichText(
-                    textAlign: TextAlign.center,
-                    textDirection: TextDirection.rtl,
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 50),
+          child: RichText(
+            textAlign: TextAlign.center,
+            textDirection: TextDirection.rtl,
             text: const TextSpan(
-                      children: [
-                        TextSpan(
-                          // text: 'مستقبل ابنك يبدأ\n',
-                          text: 'TESTTTTTTTTTTTTTTT',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF000000),
-                            height: 1.5,
-                          ),
-                        ),
-                        TextSpan(
-                          text: 'هنا 👋',
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            fontSize: 30,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFFFFFFFF),
-                            height: 1.5,
-                          ),
-                        ),
-                      ],
-                    ),
+              children: [
+                TextSpan(
+                  text: 'مستقبل ابنك يبدأ\n',
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF000000),
+                    height: 1.5,
                   ),
                 ),
-                const Spacer(),
+                TextSpan(
+                  text: 'هنا 👋',
+                  style: TextStyle(
+                    fontFamily: 'Cairo',
+                    fontSize: 30,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFFFFFFFF),
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Spacer(),
       ],
     );
   }
@@ -215,15 +214,12 @@ class _SplashPageState extends State<SplashPage>
                       height: 1.5,
                     ),
                   ),
-              ],
+                ],
+              ),
             ),
-          ),
           ],
         ),
       ),
     );
   }
 }
-
-
-

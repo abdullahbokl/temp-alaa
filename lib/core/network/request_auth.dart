@@ -1,6 +1,6 @@
 import '../constants/api_constants.dart';
 
-enum AuthRequirement { public, optional, protected }
+enum AuthRequirement { public, guest, optional, protected }
 
 class RequestAuthMeta {
   static const String authRequirementKey = 'auth_requirement';
@@ -17,8 +17,12 @@ class RequestAuthPolicyResolver {
       return AuthRequirement.public;
     }
 
-    if (_isOptionalCoursePath(normalized)) {
-      return AuthRequirement.optional;
+    if (_guestPaths.contains(normalized)) {
+      return AuthRequirement.guest;
+    }
+
+    if (_guestPrefixes.any(normalized.startsWith)) {
+      return AuthRequirement.guest;
     }
 
     if (_protectedExactPaths.contains(normalized)) {
@@ -27,6 +31,10 @@ class RequestAuthPolicyResolver {
 
     if (_protectedPrefixes.any(normalized.startsWith)) {
       return AuthRequirement.protected;
+    }
+
+    if (_isOptionalCoursePath(normalized)) {
+      return AuthRequirement.optional;
     }
 
     return AuthRequirement.optional;
@@ -53,7 +61,20 @@ class RequestAuthPolicyResolver {
     ApiConstants.googleAuth,
     ApiConstants.googleCallback,
     ApiConstants.mobileOAuthLogin,
+    ApiConstants.sendEmailOtp,
+    ApiConstants.verifyEmailOtp,
+    ApiConstants.checkEmailVerification,
   };
+
+  static final Set<String> _guestPaths = {
+    ApiConstants.reelsFeed,
+    ApiConstants.reelCategoriesWithReels,
+  };
+
+  static final List<String> _guestPrefixes = [
+    'reels/',
+    'reel-categories/',
+  ];
 
   static final Set<String> _protectedExactPaths = {
     ApiConstants.myCourses,
@@ -61,9 +82,6 @@ class RequestAuthPolicyResolver {
     ApiConstants.profile,
     ApiConstants.updateProfile,
     ApiConstants.logout,
-    ApiConstants.sendEmailOtp,
-    ApiConstants.verifyEmailOtp,
-    ApiConstants.checkEmailVerification,
     ApiConstants.changePassword,
     ApiConstants.generateCertificate,
     ApiConstants.ownedCertificates,
@@ -77,8 +95,6 @@ class RequestAuthPolicyResolver {
     'certificates',
     'payments',
     'transactions',
-    'reels/',
-    'reel-categories/',
     'auth/',
     'user/',
   ];

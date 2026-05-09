@@ -22,7 +22,9 @@ abstract class CourseRemoteDataSource {
 
   Future<CourseModel> getCourseById(int id);
 
-  Future<List<CourseModel>> getMyCourses();
+  Future<PaginatedList<CourseModel>> getMyCourses({
+    required PaginationParams pagination,
+  });
 }
 
 class CourseRemoteDataSourceImpl implements CourseRemoteDataSource {
@@ -114,31 +116,26 @@ class CourseRemoteDataSourceImpl implements CourseRemoteDataSource {
   }
 
   @override
-  Future<List<CourseModel>> getMyCourses() async {
+  Future<PaginatedList<CourseModel>> getMyCourses({
+    required PaginationParams pagination,
+  }) async {
     try {
       final response = await dioClient.get(
         ApiConstants.myCourses,
+        queryParameters: pagination.toPerPageMap(),
         auth: AuthRequirement.protected,
       );
 
       if (response.statusCode == 200) {
-        List<dynamic> coursesJson;
-        final responseData = response.data;
-
-        if (responseData['data'] is Map && responseData['data']['data'] is List) {
-          coursesJson = responseData['data']['data'];
-        } else if (responseData['data'] is List) {
-          coursesJson = responseData['data'];
-        } else if (responseData['courses'] is List) {
-          coursesJson = responseData['courses'];
-        } else if (responseData is List) {
-          coursesJson = responseData;
-        } else {
-          coursesJson = [];
-        }
-
-        if (coursesJson.isEmpty) return <CourseModel>[];
-        return compute(parseCoursesListInIsolate, coursesJson);
+        return PaginationParser.parse<CourseModel>(
+          responseData: response.data,
+          requestedPage: pagination.page,
+          requestedLimit: pagination.limit,
+          mapItems: (rawItems) {
+            if (rawItems.isEmpty) return <CourseModel>[];
+            return parseCoursesListInIsolate(rawItems);
+          },
+        );
       }
 
       throw ServerException(

@@ -29,6 +29,7 @@ class ReelControllerPool {
   static const int maxControllers = 3;
 
   final List<BetterPlayerController> _controllers = <BetterPlayerController>[];
+  final Map<String, Completer<bool>> _loadingCompleters = {};
 
   BetterPlayerController controllerAt(int slot) {
     assert(slot >= 0 && slot < maxControllers);
@@ -98,13 +99,43 @@ class ReelControllerPool {
   /// On **iOS**, after load: `setVolume(0)` → short delay → `play()` so autoplay actually starts.
   ///
   /// [forceStart]: when false (preload), only attaches the source; use [warmUp] to buffer.
+  /// [slotKey]: unique key for this slot to handle fast-swipe locking.
   Future<bool> setDataSource(
     BetterPlayerController controller, {
     required String url,
     bool forceStart = true,
+    String? slotKey,
   }) async {
     if (url.trim().isEmpty) return false;
 
+    if (slotKey != null) {
+      if (_loadingCompleters.containsKey(slotKey)) {
+        return _loadingCompleters[slotKey]!.future;
+      }
+      _loadingCompleters[slotKey] = Completer<bool>();
+    }
+
+    try {
+      final result = await _setDataSourceInternal(controller, url: url, forceStart: forceStart);
+      if (slotKey != null) {
+        _loadingCompleters[slotKey]?.complete(result);
+        _loadingCompleters.remove(slotKey);
+      }
+      return result;
+    } catch (e) {
+      if (slotKey != null) {
+        _loadingCompleters[slotKey]?.complete(false);
+        _loadingCompleters.remove(slotKey);
+      }
+      rethrow;
+    }
+  }
+
+  Future<bool> _setDataSourceInternal(
+    BetterPlayerController controller, {
+    required String url,
+    bool forceStart = true,
+  }) async {
     try {
       controller.pause();
     } catch (_) {}
@@ -189,6 +220,38 @@ class ReelControllerPool {
 
   void clearPool() {
     _controllers.clear();
+    _loadingCompleters.clear();
+  }
+
+  Future<void> preBuffer({
+    required int currentIndex,
+    required List<String> urls,
+    required List<int> slots,
+    int bufferAhead = 2,
+  }) async {
+    if (urls.isEmpty || slots.isEmpty) return;
+
+    for (int offset = 1; offset <= bufferAhead; offset++) {
+      final targetIndex = currentIndex + offset;
+      if (targetIndex >= urls.length) break;
+
+      final url = urls[targetIndex];
+      if (url.isEmpty) continue;
+
+      final slotIndex = (slots.length > targetIndex) ? slots[targetIndex] : null;
+      if (slotIndex == null || slotIndex >= maxControllers) continue;
+
+      final controller = controllerAt(slotIndex);
+      try {
+        await setDataSource(
+          controller,
+          url: url,
+          forceStart: false,
+          slotKey: 'prebuffer_$targetIndex',
+        );
+        await warmUp(controller);
+      } catch (_) {}
+    }
   }
 }
 

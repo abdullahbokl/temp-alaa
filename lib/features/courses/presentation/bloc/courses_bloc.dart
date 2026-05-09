@@ -32,6 +32,7 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     on<LoadMoreCoursesEvent>(_onLoadMoreCourses);
     on<LoadCourseByIdEvent>(_onLoadCourseById);
     on<LoadMyCoursesEvent>(_onLoadMyCourses);
+    on<LoadMoreMyCoursesEvent>(_onLoadMoreMyCourses);
     on<FilterByCategoryEvent>(_onFilterByCategory);
     on<FilterBySpecialtyEvent>(_onFilterBySpecialty);
     on<ClearFiltersEvent>(_onClearFilters);
@@ -150,19 +151,23 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
     Emitter<CoursesState> emit,
   ) async {
     final shouldRefresh = event.refresh;
+    final nextPage = event.page;
+
     emit(
       state.copyWith(
         isInitialLoading: state.items.isEmpty && !shouldRefresh,
         isRefreshing: shouldRefresh,
         isLoadingMore: false,
-        hasMore: false,
-        currentPage: 1,
+        currentPage: nextPage,
         isMyCoursesMode: true,
         clearError: true,
       ),
     );
 
-    final result = await getMyCoursesUseCase();
+    final result = await getMyCoursesUseCase(
+      pagination: PaginationParams(page: nextPage, limit: _perPage),
+    );
+
     result.fold(
       (failure) {
         emit(
@@ -173,13 +178,47 @@ class CoursesBloc extends Bloc<CoursesEvent, CoursesState> {
           ),
         );
       },
-      (courses) {
+      (pageData) {
         emit(
           state.copyWith(
-            items: courses,
-            hasMore: false,
+            items: event.page == 1 ? pageData.items : [...state.items, ...pageData.items],
+            hasMore: pageData.hasMore,
+            currentPage: pageData.page,
             isInitialLoading: false,
             isRefreshing: false,
+            isLoadingMore: false,
+            clearError: true,
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _onLoadMoreMyCourses(
+    LoadMoreMyCoursesEvent event,
+    Emitter<CoursesState> emit,
+  ) async {
+    if (!state.isMyCoursesMode || state.isInitialLoading || state.isRefreshing || state.isLoadingMore || !state.hasMore) {
+      return;
+    }
+
+    final nextPage = state.currentPage + 1;
+    emit(state.copyWith(isLoadingMore: true, clearError: true));
+
+    final result = await getMyCoursesUseCase(
+      pagination: PaginationParams(page: nextPage, limit: _perPage),
+    );
+
+    result.fold(
+      (failure) {
+        emit(state.copyWith(isLoadingMore: false, errorMessage: failure.message));
+      },
+      (pageData) {
+        emit(
+          state.copyWith(
+            items: [...state.items, ...pageData.items],
+            currentPage: pageData.page,
+            hasMore: pageData.hasMore,
             isLoadingMore: false,
             clearError: true,
           ),

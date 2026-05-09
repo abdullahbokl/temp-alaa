@@ -41,11 +41,16 @@ class LoadCourseByIdEvent extends CoursesEvent {
 
 class LoadMyCoursesEvent extends CoursesEvent {
   final bool refresh;
+  final int page;
 
-  const LoadMyCoursesEvent({this.refresh = false});
+  const LoadMyCoursesEvent({this.refresh = false, this.page = 1});
 
   @override
-  List<Object?> get props => [refresh];
+  List<Object?> get props => [refresh, page];
+}
+
+class LoadMoreMyCoursesEvent extends CoursesEvent {
+  const LoadMoreMyCoursesEvent();
 }
 
 class FilterByCategoryEvent extends CoursesEvent {
