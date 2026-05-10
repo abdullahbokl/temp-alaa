@@ -19,12 +19,13 @@ class DioClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
-        connectTimeout: const Duration(milliseconds: AppConstants.connectionTimeout),
-        receiveTimeout: const Duration(milliseconds: AppConstants.receiveTimeout),
+        connectTimeout:
+            const Duration(milliseconds: AppConstants.connectionTimeout),
+        receiveTimeout:
+            const Duration(milliseconds: AppConstants.receiveTimeout),
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
-          'Connection': 'keep-alive',
         },
         persistentConnection: true,
         followRedirects: true,
@@ -203,7 +204,8 @@ class DioClient {
     }
   }
 
-  Options _withAuthOptions(String path, Options? options, AuthRequirement? auth) {
+  Options _withAuthOptions(
+      String path, Options? options, AuthRequirement? auth) {
     final requirement = auth ?? RequestAuthPolicyResolver.resolve(path);
     final merged = options ?? Options();
     merged.extra ??= <String, dynamic>{};

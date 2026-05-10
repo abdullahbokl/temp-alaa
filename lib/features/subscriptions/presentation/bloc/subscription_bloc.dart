@@ -66,11 +66,15 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       await _billingService.initialize(
         onPurchaseUpdated: (PurchaseDetails purchase) {
           print('Purchase updated callback triggered');
-          add(IapPurchaseUpdatedEvent(purchase));
+          if (!isClosed) {
+            add(IapPurchaseUpdatedEvent(purchase));
+          }
         },
         onError: (String error) {
           print('Billing error callback: $error');
-          add(IapErrorEvent(error));
+          if (!isClosed) {
+            add(IapErrorEvent(error));
+          }
         },
       );
       _billingInitialized = true;
@@ -89,11 +93,15 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       await _appleIapService.initialize(
         onPurchaseUpdated: (PurchaseDetails purchase) {
           print('Apple IAP purchase updated');
-          add(IapPurchaseUpdatedEvent(purchase));
+          if (!isClosed) {
+            add(IapPurchaseUpdatedEvent(purchase));
+          }
         },
         onError: (String error) {
           print('Apple IAP error: $error');
-          add(IapErrorEvent(error));
+          if (!isClosed) {
+            add(IapErrorEvent(error));
+          }
         },
       );
       _appleIapInitialized = true;
@@ -156,13 +164,15 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
       print('Product ID: ${purchase.productID}');
       print('Purchase ID from backend: $_pendingPurchaseId');
 
-      add(VerifyIapReceiptEvent(
-        receiptData: verificationData.serverVerificationData,
-        transactionId: purchase.purchaseID ?? '',
-        purchaseId: _pendingPurchaseId!,
-        store: Platform.isAndroid ? 'google_play' : 'app_store',
-        purchaseDetails: purchase,
-      ));
+      if (!isClosed) {
+        add(VerifyIapReceiptEvent(
+          receiptData: verificationData.serverVerificationData,
+          transactionId: purchase.purchaseID ?? '',
+          purchaseId: _pendingPurchaseId!,
+          store: Platform.isAndroid ? 'google_play' : 'app_store',
+          purchaseDetails: purchase,
+        ));
+      }
 
     } catch (e) {
       print('Verification error: $e');
@@ -539,7 +549,9 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
     _paymentTimeoutTimer = Timer(const Duration(seconds: 5), () {
       final currentState = state;
       if (currentState is PaymentProcessing || currentState is PaymentInitiated) {
-        add(const LoadSubscriptionsEvent());
+        if (!isClosed) {
+          add(const LoadSubscriptionsEvent());
+        }
       }
     });
 
@@ -785,7 +797,9 @@ class SubscriptionBloc extends Bloc<SubscriptionEvent, SubscriptionState> {
             _notifySubscriptionUpdated();
             print('Payment completed, reloading subscriptions in 0.5 seconds...');
             await Future.delayed(const Duration(milliseconds: 500));
-            add(const LoadSubscriptionsEvent());
+            if (!isClosed) {
+              add(const LoadSubscriptionsEvent());
+            }
           } else if (response.hasCheckoutUrl) {
             emit(PaymentCheckoutReady(
               checkoutUrl: response.checkoutUrl!,

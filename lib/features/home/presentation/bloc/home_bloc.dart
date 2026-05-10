@@ -48,7 +48,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
         final result = await getHomeDataUseCase();
         result.fold(
           (_) {},
-          (homeData) => add(RealtimeHomeDataUpdateEvent(homeData)),
+          (homeData) {
+            if (!isClosed) {
+              add(RealtimeHomeDataUpdateEvent(homeData));
+            }
+          },
         );
       },
     );
@@ -107,9 +111,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       },
       (homeData) {
         emit(HomeLoaded(homeData));
-        add(const LoadLatestCoursesEvent());
-        add(const LoadFreeCoursesEvent());
-        add(const LoadPopularCoursesEvent());
+        if (!isClosed) {
+          add(const LoadLatestCoursesEvent());
+          add(const LoadFreeCoursesEvent());
+          add(const LoadPopularCoursesEvent());
+        }
       },
     );
   }
@@ -133,9 +139,11 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
       },
       (homeData) {
         emit(HomeLoaded(homeData));
-        add(const LoadLatestCoursesEvent());
-        add(const LoadFreeCoursesEvent());
-        add(const LoadPopularCoursesEvent());
+        if (!isClosed) {
+          add(const LoadLatestCoursesEvent());
+          add(const LoadFreeCoursesEvent());
+          add(const LoadPopularCoursesEvent());
+        }
       },
     );
   }

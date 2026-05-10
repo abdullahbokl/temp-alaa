@@ -1,9 +1,12 @@
 import 'dart:async';
 
 import 'package:better_player_plus/better_player_plus.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform, kIsWeb, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show defaultTargetPlatform, kIsWeb, TargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+
+import '../../../../core/config/bunny_stream_resolver.dart';
 
 const BetterPlayerBufferingConfiguration _reelBufferingConfig =
     BetterPlayerBufferingConfiguration(
@@ -68,7 +71,7 @@ class ReelControllerPool {
   void releaseSlot(int slot) {
     if (slot < 0 || slot >= _controllers.length) return;
     try {
-      _controllers[slot].pause();
+      unawaited(_controllers[slot].pause().catchError((_) {}));
     } catch (_) {}
   }
 
@@ -76,18 +79,8 @@ class ReelControllerPool {
     return _controllers.contains(controller);
   }
 
-  /// Bunny Stream `/play/{id}` → `{base}/{id}/playlist.m3u8` for HLS.
   static String toBunnyHlsUrl(String bunnyPlayUrl) {
-    final url = bunnyPlayUrl.trim();
-    if (url.isEmpty) return url;
-    if (url.contains('.m3u8')) return url;
-    if (!url.contains('/play/')) return url;
-    final parts = url.split('/play/');
-    if (parts.length != 2 || parts[1].isEmpty) return url;
-    final pathPart = parts[1].split('?').first.trim();
-    if (pathPart.isEmpty) return url;
-    final base = parts[0];
-    return '$base/$pathPart/playlist.m3u8';
+    return BunnyStreamResolver.toHlsUrl(bunnyPlayUrl) ?? bunnyPlayUrl.trim();
   }
 
   static bool _isIosLikeReelsTarget() {
@@ -116,7 +109,8 @@ class ReelControllerPool {
     }
 
     try {
-      final result = await _setDataSourceInternal(controller, url: url, forceStart: forceStart);
+      final result = await _setDataSourceInternal(controller,
+          url: url, forceStart: forceStart);
       if (slotKey != null) {
         _loadingCompleters[slotKey]?.complete(result);
         _loadingCompleters.remove(slotKey);
@@ -137,17 +131,21 @@ class ReelControllerPool {
     bool forceStart = true,
   }) async {
     try {
-      controller.pause();
+      await controller.pause();
     } catch (_) {}
 
     final trimmed = url.trim();
+    final resolved = BunnyStreamResolver.resolve(trimmed);
 
     Future<void> tryLoad(String loadUrl, BetterPlayerVideoFormat format) async {
       final dataSource = BetterPlayerDataSource(
         BetterPlayerDataSourceType.network,
         loadUrl,
         videoFormat: format,
-        cacheConfiguration: _reelCacheConfig,
+        headers: resolved.headers,
+        cacheConfiguration: _isIosLikeReelsTarget()
+            ? const BetterPlayerCacheConfiguration(useCache: false)
+            : _reelCacheConfig,
         bufferingConfiguration: _reelBufferingConfig,
       );
       await controller.setupDataSource(dataSource);
@@ -164,16 +162,25 @@ class ReelControllerPool {
       try {
         await controller.play();
       } catch (_) {}
+      if (_isIosLikeReelsTarget()) {
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        try {
+          await controller.setVolume(1);
+        } catch (_) {}
+      }
     }
 
-    final hlsUrl = toBunnyHlsUrl(trimmed);
+    final hlsUrl = resolved.isHls ? resolved.url : toBunnyHlsUrl(trimmed);
+    final isHls = hlsUrl.toLowerCase().contains('.m3u8');
 
-    try {
-      await tryLoad(hlsUrl, BetterPlayerVideoFormat.hls);
-      await forceStartPlayback();
-      return true;
-    } catch (e) {
-      debugPrint('Reel HLS load failed: $e');
+    if (isHls) {
+      try {
+        await tryLoad(hlsUrl, BetterPlayerVideoFormat.hls);
+        await forceStartPlayback();
+        return true;
+      } catch (e) {
+        debugPrint('Reel HLS load failed: $e');
+      }
     }
 
     try {
@@ -200,7 +207,7 @@ class ReelControllerPool {
   void pauseAll() {
     for (final c in _controllers) {
       try {
-        c.pause();
+        unawaited(c.pause().catchError((_) {}));
       } catch (_) {}
     }
   }
@@ -238,7 +245,8 @@ class ReelControllerPool {
       final url = urls[targetIndex];
       if (url.isEmpty) continue;
 
-      final slotIndex = (slots.length > targetIndex) ? slots[targetIndex] : null;
+      final slotIndex =
+          (slots.length > targetIndex) ? slots[targetIndex] : null;
       if (slotIndex == null || slotIndex >= maxControllers) continue;
 
       final controller = controllerAt(slotIndex);

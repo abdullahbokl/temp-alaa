@@ -71,6 +71,8 @@ import '../../features/transactions/data/repositories/transactions_repository_im
 import '../../features/transactions/domain/repositories/transactions_repository.dart';
 import '../../features/transactions/domain/usecases/get_my_transactions_usecase.dart';
 import '../../features/transactions/presentation/bloc/transactions_bloc.dart';
+import '../../features/shorts/domain/usecases/check_shorts_access_usecase.dart';
+import '../../features/shorts/presentation/bloc/shorts_bloc.dart';
 import '../network/dio_client.dart';
 import '../storage/hive_service.dart';
 import '../storage/secure_storage_service.dart';
@@ -100,24 +102,25 @@ Future<void> initDependencies() async {
   _initLessons();
   _initChapters();
   _initReels();
+  _initShorts();
   _initBanners();
   _initTransactions();
 }
 
 void _initAuth() {
   sl.registerLazySingleton<AuthRemoteDataSource>(
-        () => AuthRemoteDataSourceImpl(sl()),
+    () => AuthRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<AuthLocalDataSource>(
-        () => AuthLocalDataSourceImpl(
+    () => AuthLocalDataSourceImpl(
       hiveService: sl(),
       secureStorage: sl(),
     ),
   );
 
   sl.registerLazySingleton<AuthRepository>(
-        () => AuthRepositoryImpl(
+    () => AuthRepositoryImpl(
       remoteDataSource: sl(),
       localDataSource: sl(),
       sharedPreferences: sl(),
@@ -129,7 +132,7 @@ void _initAuth() {
   sl.registerLazySingleton(() => RegisterUseCase(sl()));
 
   sl.registerFactory(
-        () => AuthBloc(
+    () => AuthBloc(
       loginUseCase: sl(),
       registerUseCase: sl(),
       authRepository: sl(),
@@ -140,11 +143,11 @@ void _initAuth() {
 
 void _initCertificates() {
   sl.registerLazySingleton<CertificateRemoteDataSource>(
-        () => CertificateRemoteDataSourceImpl(sl()),
+    () => CertificateRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<CertificateRepository>(
-        () => CertificateRepositoryImpl(
+    () => CertificateRepositoryImpl(
       remoteDataSource: sl(),
     ),
   );
@@ -154,7 +157,7 @@ void _initCertificates() {
   sl.registerLazySingleton(() => GetCertificateByIdUseCase(sl()));
 
   sl.registerFactory(
-        () => CertificateBloc(
+    () => CertificateBloc(
       generateCertificateUseCase: sl(),
       getOwnedCertificatesUseCase: sl(),
       getCertificateByIdUseCase: sl(),
@@ -164,11 +167,11 @@ void _initCertificates() {
 
 void _initHome() {
   sl.registerLazySingleton<HomeRemoteDataSource>(
-        () => HomeRemoteDataSourceImpl(sl()),
+    () => HomeRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<HomeRepository>(
-        () => HomeRepositoryImpl(
+    () => HomeRepositoryImpl(
       remoteDataSource: sl(),
     ),
   );
@@ -190,11 +193,11 @@ void _initHome() {
 
 void _initSubscriptions() {
   sl.registerLazySingleton<SubscriptionRemoteDataSource>(
-        () => SubscriptionRemoteDataSourceImpl(sl()),
+    () => SubscriptionRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<SubscriptionRepository>(
-        () => SubscriptionRepositoryImpl(
+    () => SubscriptionRepositoryImpl(
       remoteDataSource: sl(),
     ),
   );
@@ -206,7 +209,7 @@ void _initSubscriptions() {
   sl.registerLazySingleton(() => VerifyIapReceiptUseCase(sl()));
 
   sl.registerFactory(
-        () => SubscriptionBloc(
+    () => SubscriptionBloc(
       getSubscriptionsUseCase: sl(),
       getSubscriptionByIdUseCase: sl(),
       createSubscriptionUseCase: sl(),
@@ -220,11 +223,11 @@ void _initSubscriptions() {
 
 void _initCourses() {
   sl.registerLazySingleton<CourseRemoteDataSource>(
-        () => CourseRemoteDataSourceImpl(sl()),
+    () => CourseRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<CourseRepository>(
-        () => CourseRepositoryImpl(
+    () => CourseRepositoryImpl(
       remoteDataSource: sl(),
     ),
   );
@@ -234,7 +237,7 @@ void _initCourses() {
   sl.registerLazySingleton(() => GetMyCoursesUseCase(sl()));
 
   sl.registerFactory(
-        () => CoursesBloc(
+    () => CoursesBloc(
       getCoursesUseCase: sl(),
       getCourseByIdUseCase: sl(),
       getMyCoursesUseCase: sl(),
@@ -245,11 +248,11 @@ void _initCourses() {
 
 void _initLessons() {
   sl.registerLazySingleton<LessonRemoteDataSource>(
-        () => LessonRemoteDataSourceImpl(sl()),
+    () => LessonRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<LessonRepository>(
-        () => LessonRepositoryImpl(
+    () => LessonRepositoryImpl(
       remoteDataSource: sl(),
     ),
   );
@@ -258,7 +261,7 @@ void _initLessons() {
   sl.registerLazySingleton(() => MarkLessonViewedUseCase(sl()));
 
   sl.registerFactory(
-        () => LessonBloc(
+    () => LessonBloc(
       getLessonByIdUseCase: sl(),
       markLessonViewedUseCase: sl(),
     ),
@@ -267,11 +270,11 @@ void _initLessons() {
 
 void _initChapters() {
   sl.registerLazySingleton<ChapterRemoteDataSource>(
-        () => ChapterRemoteDataSourceImpl(sl()),
+    () => ChapterRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<ChapterRepository>(
-        () => ChapterRepositoryImpl(
+    () => ChapterRepositoryImpl(
       remoteDataSource: sl(),
     ),
   );
@@ -279,7 +282,7 @@ void _initChapters() {
   sl.registerLazySingleton(() => GetChapterByIdUseCase(sl()));
 
   sl.registerFactory(
-        () => ChapterBloc(
+    () => ChapterBloc(
       getChapterByIdUseCase: sl(),
     ),
   );
@@ -287,11 +290,11 @@ void _initChapters() {
 
 void _initReels() {
   sl.registerLazySingleton<ReelsRemoteDataSource>(
-        () => ReelsRemoteDataSourceImpl(sl()),
+    () => ReelsRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<ReelsRepository>(
-        () => ReelsRepositoryImpl(
+    () => ReelsRepositoryImpl(
       remoteDataSource: sl(),
     ),
   );
@@ -304,7 +307,7 @@ void _initReels() {
   sl.registerLazySingleton(() => GetUserLikedReelsUseCase(sl()));
 
   sl.registerFactory(
-        () => ReelsBloc(
+    () => ReelsBloc(
       getReelsFeedUseCase: sl(),
       recordReelViewUseCase: sl(),
       toggleReelLikeUseCase: sl(),
@@ -316,13 +319,23 @@ void _initReels() {
   );
 }
 
+void _initShorts() {
+  sl.registerLazySingleton(() => const CheckShortsAccessUseCase());
+
+  sl.registerFactory(
+    () => ShortsBloc(
+      checkShortsAccessUseCase: sl(),
+    ),
+  );
+}
+
 void _initBanners() {
   sl.registerLazySingleton<BannersRemoteDataSource>(
-        () => BannersRemoteDataSourceImpl(sl()),
+    () => BannersRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<BannersRepository>(
-        () => BannersRepositoryImpl(sl()),
+    () => BannersRepositoryImpl(sl()),
   );
 
   sl.registerLazySingleton(() => GetSiteBannersUseCase(sl()));
@@ -331,20 +344,18 @@ void _initBanners() {
 
 void _initTransactions() {
   sl.registerLazySingleton<TransactionsRemoteDataSource>(
-        () => TransactionsRemoteDataSourceImpl(sl()),
+    () => TransactionsRemoteDataSourceImpl(sl()),
   );
 
   sl.registerLazySingleton<TransactionsRepository>(
-        () => TransactionsRepositoryImpl(remoteDataSource: sl()),
+    () => TransactionsRepositoryImpl(remoteDataSource: sl()),
   );
 
   sl.registerLazySingleton(() => GetMyTransactionsUseCase(sl()));
 
   sl.registerFactory(
-        () => TransactionsBloc(
+    () => TransactionsBloc(
       getMyTransactionsUseCase: sl(),
     ),
   );
 }
-
-

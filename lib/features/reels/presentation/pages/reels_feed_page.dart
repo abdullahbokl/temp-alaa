@@ -31,20 +31,25 @@ import 'collected_reels_page.dart';
 class ReelsFeedPage extends StatefulWidget {
   final int initialIndex;
   final bool showBackButton;
-  final int
-      freeReelsLimit;
+  final int freeReelsLimit;
+  final bool isLimitEnabled;
+  final bool forceLocked;
   final bool isTabActive;
   final bool hideCategoryFilters;
   final Reel? initialReel;
+  final ValueChanged<int>? onReelViewed;
 
   const ReelsFeedPage({
     super.key,
     this.initialIndex = 0,
     this.showBackButton = true,
     this.freeReelsLimit = 10,
+    this.isLimitEnabled = true,
+    this.forceLocked = false,
     this.isTabActive = false,
     this.hideCategoryFilters = false,
     this.initialReel,
+    this.onReelViewed,
   });
 
   @override
@@ -59,8 +64,7 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
   Timer? _pageChangeDebounce;
   int _selectedCategoryIndex = -1;
   bool _isSubscribed = false;
-  bool _isPageVisible =
-      true;
+  bool _isPageVisible = true;
   bool _isCheckingAuth = true;
   bool _isAuthenticated = false;
 
@@ -104,7 +108,9 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
     _checkSubscriptionStatus();
 
     if (widget.initialReel != null) {
-      context.read<ReelsBloc>().add(SeedSingleReelEvent(reel: widget.initialReel!));
+      context
+          .read<ReelsBloc>()
+          .add(SeedSingleReelEvent(reel: widget.initialReel!));
     }
 
     if (widget.isTabActive) {
@@ -157,54 +163,38 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
             _isAuthenticated &&
             mounted) {
           _shouldResetOnNextLoad = true;
-          
+
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             try {
               final bloc = context.read<ReelsBloc>();
+              if (bloc.isClosed) return;
               final currentState = bloc.state;
-              if (currentState is ReelsWithCategories) {
+              if (currentState is ReelsWithCategories || (currentState is ReelsLoaded && currentState.categories.isNotEmpty)) {
                 _setStateSafely(() {
-                  _categories = currentState.categories
+                  final categoriesToUse = (currentState is ReelsWithCategories) 
+                      ? currentState.categories 
+                      : (currentState as ReelsLoaded).categories;
+
+                  _categories = categoriesToUse
                       .where((c) => c.isActive)
                       .toList()
                       .reversed
                       .toList();
 
-                  if (_categories.isNotEmpty) {
-                    _selectedCategoryIndex = -1;
-                    _activeCategoryId = null;
-                    _lastFilteredCategoryId = null;
-                    _pendingNextCategoryStartIndex = null;
-                    _pendingNextCategoryId = null;
-                    _pendingNextCategoryIndex = null;
-                    _pageViewResetToken++;
-                    if (isReelNativePlayerSupported) reelControllerPool.disposeAll();
-                    bloc.add(
-                      const LoadReelsFeedEvent(
-                        perPage: 5,
-                        categoryId: null,
-                      ),
-                    );
-                  }
-                });
-              } else if (currentState is ReelsLoaded && currentState.categories.isNotEmpty) {
-                _setStateSafely(() {
-                  _categories = currentState.categories
-                      .where((c) => c.isActive)
-                      .toList()
-                      .reversed
-                      .toList();
+                  _selectedCategoryIndex = -1;
+                  _activeCategoryId = null;
+                  _lastFilteredCategoryId = null;
+                  _pendingNextCategoryStartIndex = null;
+                  _pendingNextCategoryId = null;
+                  _pendingNextCategoryIndex = null;
+                  _pageViewResetToken++;
                   
-                  if (_categories.isNotEmpty) {
-                    _selectedCategoryIndex = -1;
-                    _activeCategoryId = null;
-                    _lastFilteredCategoryId = null;
-                    _pendingNextCategoryStartIndex = null;
-                    _pendingNextCategoryId = null;
-                    _pendingNextCategoryIndex = null;
-                    _pageViewResetToken++;
-                    if (isReelNativePlayerSupported) reelControllerPool.disposeAll();
+                  if (isReelNativePlayerSupported)
+                    reelControllerPool.disposeAll();
+
+                  // Trigger a fresh load to ensure the feed is ready for the visitor
+                  if (!bloc.isClosed) {
                     bloc.add(
                       const LoadReelsFeedEvent(
                         perPage: 5,
@@ -214,10 +204,13 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
                   }
                 });
               } else if (_categories.isEmpty) {
-                bloc.add(const LoadReelCategoriesEvent());
+                if (!bloc.isClosed) {
+                  bloc.add(const LoadReelCategoriesEvent());
+                }
               }
             } catch (e) {
-              debugPrint('ReelsFeedPage: Could not restore/load categories: $e');
+              debugPrint(
+                  'ReelsFeedPage: Could not restore/load categories: $e');
             }
           });
         }
@@ -288,7 +281,10 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
       _isCheckingAuth = false;
     });
 
-    if (_isAuthenticated && widget.initialReel == null && !widget.hideCategoryFilters && mounted) {
+    if (_isAuthenticated &&
+        widget.initialReel == null &&
+        !widget.hideCategoryFilters &&
+        mounted) {
       context.read<ReelsBloc>().add(const LoadReelCategoriesEvent());
     }
   }
@@ -302,8 +298,7 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
     });
   }
 
-  void _checkPaywall(int index) {
-  }
+  void _checkPaywall(int index) {}
 
   void _handleSubscribe() async {
     debugPrint('ReelsFeedPage: _handleSubscribe called');
@@ -322,8 +317,10 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
 
     try {
       if (!isAuthenticated) {
-        debugPrint('ReelsFeedPage: User not authenticated, navigating to login');
-        final result = await Navigator.of(context, rootNavigator: true).pushNamed(
+        debugPrint(
+            'ReelsFeedPage: User not authenticated, navigating to login');
+        final result =
+            await Navigator.of(context, rootNavigator: true).pushNamed(
           AppRouter.login,
           arguments: {
             'returnTo': 'subscriptions',
@@ -332,21 +329,25 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
         if (!mounted) return;
 
         if (result == true && mounted) {
-          debugPrint('ReelsFeedPage: Login successful, switching to subscriptions tab');
+          debugPrint(
+              'ReelsFeedPage: Login successful, switching to subscriptions tab');
           if (mainNav != null) {
             mainNav.setShowBottomNav(true);
             mainNav.switchToTab(2);
           } else {
-            await Navigator.of(context, rootNavigator: true).pushNamed(AppRouter.subscriptions);
+            await Navigator.of(context, rootNavigator: true)
+                .pushNamed(AppRouter.subscriptions);
           }
         }
       } else {
-        debugPrint('ReelsFeedPage: User authenticated, switching to subscriptions tab');
+        debugPrint(
+            'ReelsFeedPage: User authenticated, switching to subscriptions tab');
         if (mainNav != null) {
           mainNav.setShowBottomNav(true);
           mainNav.switchToTab(2);
         } else {
-          await Navigator.of(context, rootNavigator: true).pushNamed(AppRouter.subscriptions);
+          await Navigator.of(context, rootNavigator: true)
+              .pushNamed(AppRouter.subscriptions);
         }
       }
     } catch (e) {
@@ -393,7 +394,7 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
       );
     }
 
-    if (!_isAuthenticated) {
+    if (!_isAuthenticated && !widget.isLimitEnabled) {
       return _UnauthenticatedReelsPage();
     }
 
@@ -418,23 +419,24 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
                       .reversed
                       .toList();
 
-                  if (_categories.isNotEmpty) {
-                    _selectedCategoryIndex = -1;
-                    _activeCategoryId = null;
-                    _lastFilteredCategoryId = null;
-                    _pageViewResetToken++;
-                    if (isReelNativePlayerSupported) reelControllerPool.disposeAll();
-                    context.read<ReelsBloc>().add(
-                          const LoadReelsFeedEvent(
-                            perPage: 10,
-                            categoryId: null,
-                          ),
-                        );
-                  }
+                  _selectedCategoryIndex = -1;
+                  _activeCategoryId = null;
+                  _lastFilteredCategoryId = null;
+                  _pageViewResetToken++;
+                  if (isReelNativePlayerSupported)
+                    reelControllerPool.disposeAll();
+                  context.read<ReelsBloc>().add(
+                        const LoadReelsFeedEvent(
+                          perPage: 5,
+                          categoryId: null,
+                        ),
+                      );
                 });
               }
 
-              if (state is ReelsLoaded && state.categories.isNotEmpty && _categories.isEmpty) {
+              if (state is ReelsLoaded &&
+                  state.categories.isNotEmpty &&
+                  _categories.isEmpty) {
                 _setStateSafely(() {
                   _categories = state.categories
                       .where((c) => c.isActive)
@@ -442,12 +444,14 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
                       .reversed
                       .toList();
                   if (_categories.isNotEmpty) {
-                    if (_selectedCategoryIndex < 0 || _selectedCategoryIndex >= _categories.length) {
+                    if (_selectedCategoryIndex < 0 ||
+                        _selectedCategoryIndex >= _categories.length) {
                       _selectedCategoryIndex = -1;
                       _activeCategoryId = null;
                       _lastFilteredCategoryId = null;
                     } else {
-                      _activeCategoryId = _categories[_selectedCategoryIndex].id;
+                      _activeCategoryId =
+                          _categories[_selectedCategoryIndex].id;
                       _lastFilteredCategoryId ??= _activeCategoryId;
                     }
                   }
@@ -455,7 +459,7 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
               }
 
               if (state is ReelsLoaded &&
-                  _shouldResetOnNextLoad && 
+                  _shouldResetOnNextLoad &&
                   state.reels.isNotEmpty &&
                   !state.isLoadingMore &&
                   !_isFiltering) {
@@ -470,18 +474,22 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
                 });
               }
 
-              if (state is ReelsLoaded && _isFiltering && state.reels.isNotEmpty) {
-                final categoryId = _categories.isNotEmpty && 
-                    _selectedCategoryIndex >= 0 && 
-                    _selectedCategoryIndex < _categories.length
+              if (state is ReelsLoaded &&
+                  _isFiltering &&
+                  state.reels.isNotEmpty) {
+                final categoryId = _categories.isNotEmpty &&
+                        _selectedCategoryIndex >= 0 &&
+                        _selectedCategoryIndex < _categories.length
                     ? _categories[_selectedCategoryIndex].id
                     : null;
 
-                if (categoryId != null && categoryId != _lastFilteredCategoryId) {
+                if (categoryId != null &&
+                    categoryId != _lastFilteredCategoryId) {
                   _lastFilteredCategoryId = categoryId;
                 }
                 _isFiltering = false;
-                if (isReelNativePlayerSupported) reelControllerPool.disposeAll();
+                if (isReelNativePlayerSupported)
+                  reelControllerPool.disposeAll();
                 WidgetsBinding.instance.addPostFrameCallback((_) {
                   if (mounted) {
                     _setStateSafely(() {
@@ -522,7 +530,8 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
                   _pageViewResetToken++;
                   _currentIndex = 0;
                 });
-                if (isReelNativePlayerSupported) reelControllerPool.disposeAll();
+                if (isReelNativePlayerSupported)
+                  reelControllerPool.disposeAll();
               }
 
               if (state is ReelsError && _isFiltering) {
@@ -598,59 +607,24 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
               }
 
               if (state is ReelsEmpty) {
-                return Container(
-                  color:  AppColors.primary,
-                  child: Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          Icons.lock_outline,
-                          color: Colors.white,
-                          size: Responsive.iconSize(context, 90),
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(
+                        Icons.movie_filter_outlined,
+                        color: Colors.white24,
+                        size: Responsive.iconSize(context, 80),
+                      ),
+                      SizedBox(height: Responsive.spacing(context, 16)),
+                      const Text(
+                        'لا توجد فيديوهات متاحة حالياً',
+                        style: TextStyle(
+                          fontFamily: 'Cairo',
+                          color: Colors.white70,
                         ),
-                        SizedBox(height: Responsive.spacing(context, 20)),
-                        Text(
-                          'اشترك لفتح باقي الفيديوهات',
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Cairo',
-                            color: Colors.white,
-                            fontSize: Responsive.fontSize(context, 18),
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                        SizedBox(height: Responsive.spacing(context, 16)),
-                        SizedBox(
-                          width: Responsive.width(context, 160),
-                          height: Responsive.height(context, 44),
-                          child: ElevatedButton(
-                            onPressed: _handleSubscribe,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              elevation: 0,
-                              padding: EdgeInsets.zero,
-                              tapTargetSize: MaterialTapTargetSize
-                                  .shrinkWrap,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Center(
-                              child: Text(
-                                'اشترك من هنا',
-                                style: TextStyle(
-                                  fontFamily: 'Cairo',
-                                  color: AppColors.primary,
-                                  fontSize: Responsive.fontSize(context, 14),
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                            ),
-                          ),
-                        )
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 );
               }
@@ -666,31 +640,35 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
                             .reversed
                             .toList();
                         if (_categories.isNotEmpty) {
-                          if (_selectedCategoryIndex < 0 || _selectedCategoryIndex >= _categories.length) {
+                          if (_selectedCategoryIndex < 0 ||
+                              _selectedCategoryIndex >= _categories.length) {
                             _selectedCategoryIndex = -1;
                           }
                         }
                       });
                     }
                   });
-                }
-                else if (_categories.isEmpty &&
+                } else if (_categories.isEmpty &&
                     widget.initialReel == null &&
                     !widget.hideCategoryFilters &&
                     widget.isTabActive) {
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     if (mounted) {
                       try {
-                        context.read<ReelsBloc>().add(const LoadReelCategoriesEvent());
+                        context
+                            .read<ReelsBloc>()
+                            .add(const LoadReelCategoriesEvent());
                       } catch (e) {
-                        debugPrint('ReelsFeedPage: Could not reload categories: $e');
+                        debugPrint(
+                            'ReelsFeedPage: Could not reload categories: $e');
                       }
                     }
                   });
                 }
                 return BlocSelector<ReelsBloc, ReelsState, ReelsLoaded>(
                   selector: (s) => s is ReelsLoaded ? s : state,
-                  builder: (context, loadedState) => _buildReelsFeed(context, loadedState),
+                  builder: (context, loadedState) =>
+                      _buildReelsFeed(context, loadedState),
                 );
               }
 
@@ -705,7 +683,6 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
               return const SizedBox.shrink();
             },
           ),
-
           if (!(!_isSubscribed && _currentIndex == widget.freeReelsLimit))
             _ReelsHeaderOverlay(
               topPadding: topPadding,
@@ -713,6 +690,13 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
               hideCategoryFilters: widget.hideCategoryFilters,
               initialReel: widget.initialReel,
               categoryFilters: _buildCategoryFilters(context),
+            ),
+          if (widget.forceLocked)
+            Positioned.fill(
+              child: ReelPaywallWidget(
+                onSubscribe: _handleSubscribe,
+                thumbnailUrl: null,
+              ),
             ),
         ],
       ),
@@ -771,17 +755,20 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
 
                 _filterDebounceTimer?.cancel();
 
-                _filterDebounceTimer = Timer(const Duration(milliseconds: 250), () {
+                _filterDebounceTimer =
+                    Timer(const Duration(milliseconds: 250), () {
                   if (!mounted) return;
-                  
+
                   try {
                     final bloc = context.read<ReelsBloc>();
-                    bloc.add(
-                      const LoadReelsFeedEvent(
-                        perPage: 10,
-                        categoryId: null,
-                      ),
-                    );
+                    if (!bloc.isClosed) {
+                      bloc.add(
+                        const LoadReelsFeedEvent(
+                          perPage: 10,
+                          categoryId: null,
+                        ),
+                      );
+                    }
                   } catch (e) {
                     debugPrint('ReelsFeedPage: Could not load all reels: $e');
                     if (mounted) {
@@ -810,19 +797,23 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
 
                 _filterDebounceTimer?.cancel();
 
-                _filterDebounceTimer = Timer(const Duration(milliseconds: 250), () {
+                _filterDebounceTimer =
+                    Timer(const Duration(milliseconds: 250), () {
                   if (!mounted) return;
-                  
+
                   try {
                     final bloc = context.read<ReelsBloc>();
-                    bloc.add(
-                      LoadReelsFeedEvent(
-                        perPage: 10,
-                        categoryId: category.id,
-                      ),
-                    );
+                    if (!bloc.isClosed) {
+                      bloc.add(
+                        LoadReelsFeedEvent(
+                          perPage: 10,
+                          categoryId: category.id,
+                        ),
+                      );
+                    }
                   } catch (e) {
-                    debugPrint('ReelsFeedPage: Could not filter by category: $e');
+                    debugPrint(
+                        'ReelsFeedPage: Could not filter by category: $e');
                     if (mounted) {
                       _setStateSafely(() => _isFiltering = false);
                     }
@@ -868,7 +859,8 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
                             height: Responsive.height(context, 12),
                             child: const CircularProgressIndicator(
                               strokeWidth: 2,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(Colors.white),
                             ),
                           ),
                         ],
@@ -888,11 +880,15 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
     final visibleReelsCount = _isSubscribed
         ? state.reels.length
         : state.reels.length.clamp(0, widget.freeReelsLimit);
-    final hasReachedFreeLimit =
-        !_isSubscribed && state.reels.length >= widget.freeReelsLimit;
+    final hasReachedFreeLimit = widget.forceLocked ||
+        (!_isSubscribed &&
+            widget.isLimitEnabled &&
+            state.reels.length >= widget.freeReelsLimit);
     final hasNextCategory = _getNextCategoryIndex() != null;
     final showLoaderItem = !hasReachedFreeLimit &&
-        (state.hasMore || state.isLoadingMore || (!state.hasMore && hasNextCategory));
+        (state.hasMore ||
+            state.isLoadingMore ||
+            (!state.hasMore && hasNextCategory));
     final itemCount = hasReachedFreeLimit
         ? visibleReelsCount + 1
         : visibleReelsCount + (showLoaderItem ? 1 : 0);
@@ -923,20 +919,28 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
 
         _checkPaywall(index);
 
+        if (index >= 0 && index < visibleReelsCount) {
+          widget.onReelViewed?.call(state.reels[index].id);
+        }
+
         if (hasReachedFreeLimit && index >= widget.freeReelsLimit) {
           return;
         }
 
         const paginationTriggerOffset = 2;
         final thresholdIndex = visibleReelsCount > 0
-            ? (visibleReelsCount - paginationTriggerOffset).clamp(0, visibleReelsCount)
+            ? (visibleReelsCount - paginationTriggerOffset)
+                .clamp(0, visibleReelsCount)
             : 0;
         final isNearEnd = visibleReelsCount > 0 && index >= thresholdIndex;
         final isLoaderIndex = index >= visibleReelsCount;
 
         if (isNearEnd && state.hasMore && !state.isLoadingMore) {
           try {
-            context.read<ReelsBloc>().add(const LoadMoreReelsEvent());
+            final bloc = context.read<ReelsBloc>();
+            if (!bloc.isClosed) {
+              bloc.add(const LoadMoreReelsEvent());
+            }
           } catch (e) {
             debugPrint('ReelsFeedPage: Could not load more reels: $e');
           }
@@ -952,8 +956,9 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
       },
       itemBuilder: (context, index) {
         if (hasReachedFreeLimit && index == widget.freeReelsLimit) {
-          final thumbnailUrl =
-              state.reels.isNotEmpty ? state.reels[widget.freeReelsLimit - 1].thumbnailUrl : null;
+          final thumbnailUrl = state.reels.isNotEmpty
+              ? state.reels[widget.freeReelsLimit - 1].thumbnailUrl
+              : null;
           return ReelPaywallWidget(
             onSubscribe: _handleSubscribe,
             thumbnailUrl: thumbnailUrl,
@@ -994,18 +999,20 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
           }
         }
 
-        final bool useNative = isReelNativePlayerSupported &&
-            reel.bunnyUrl.trim().isNotEmpty;
+        final bool useNative =
+            isReelNativePlayerSupported && reel.bunnyUrl.trim().isNotEmpty;
         final BetterPlayerController? controller = useNative &&
                 index >= _playbackIndex - 1 &&
                 index <= _playbackIndex + 1
             ? reelControllerPool.controllerAt(index - _playbackIndex + 1)
             : null;
 
-        final String? nextBunnyUrl =
-            (index + 1 < state.reels.length) ? state.reels[index + 1].bunnyUrl : null;
+        final String? nextBunnyUrl = (index + 1 < state.reels.length)
+            ? state.reels[index + 1].bunnyUrl
+            : null;
 
-        final shouldPreload = index >= _playbackIndex - 1 && index <= _playbackIndex + 2;
+        final shouldPreload =
+            index >= _playbackIndex - 1 && index <= _playbackIndex + 2;
 
         return ReelPlayerWidget(
           key: ValueKey('reel_${reel.id}'),
@@ -1025,7 +1032,10 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
           onLike: () {
             if (!mounted) return;
             try {
-              context.read<ReelsBloc>().add(ToggleReelLikeEvent(reelId: reel.id));
+              final bloc = context.read<ReelsBloc>();
+              if (!bloc.isClosed) {
+                bloc.add(ToggleReelLikeEvent(reelId: reel.id));
+              }
             } catch (e) {
               debugPrint('ReelsFeedPage: Could not toggle like: $e');
             }
@@ -1035,7 +1045,10 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
           onViewed: () {
             if (!mounted) return;
             try {
-              context.read<ReelsBloc>().add(MarkReelViewedEvent(reelId: reel.id));
+              final bloc = context.read<ReelsBloc>();
+              if (!bloc.isClosed) {
+                bloc.add(MarkReelViewedEvent(reelId: reel.id));
+              }
             } catch (e) {
               debugPrint('ReelsFeedPage: Could not mark viewed: $e');
             }
@@ -1069,7 +1082,8 @@ class _ReelsFeedPageState extends State<ReelsFeedPage>
       return null;
     }
 
-    final startIndex = _selectedCategoryIndex >= 0 ? _selectedCategoryIndex : -1;
+    final startIndex =
+        _selectedCategoryIndex >= 0 ? _selectedCategoryIndex : -1;
     return (startIndex + 1) % _categories.length;
   }
 

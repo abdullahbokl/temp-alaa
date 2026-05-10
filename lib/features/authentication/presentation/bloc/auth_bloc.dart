@@ -57,7 +57,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         .on<SubscriptionUpdatedEvent>()
         .listen((_) {
       debugPrint('🔥 SubscriptionUpdatedEvent received in AuthBloc');
-      add(RefreshUserFromApiEvent());
+      if (!isClosed) {
+        add(RefreshUserFromApiEvent());
+      }
     });
   }
 

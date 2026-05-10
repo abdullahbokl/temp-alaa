@@ -66,15 +66,9 @@ class RequestAuthPolicyResolver {
     ApiConstants.checkEmailVerification,
   };
 
-  static final Set<String> _guestPaths = {
-    ApiConstants.reelsFeed,
-    ApiConstants.reelCategoriesWithReels,
-  };
+  static final Set<String> _guestPaths = {};
 
-  static final List<String> _guestPrefixes = [
-    'reels/',
-    'reel-categories/',
-  ];
+  static final List<String> _guestPrefixes = [];
 
   static final Set<String> _protectedExactPaths = {
     ApiConstants.myCourses,

@@ -62,7 +62,9 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
         .on<SubscriptionUpdatedEvent>()
         .listen((_) {
       AppLogger.log('🔥 SubscriptionUpdatedEvent received in ReelsBloc', tag: 'ReelsBloc');
-      add(LoadReelsFeedEvent(perPage: _perPage, categoryId: _currentCategoryId));
+      if (!isClosed) {
+        add(LoadReelsFeedEvent(perPage: _perPage, categoryId: _currentCategoryId));
+      }
     });
   }
 
@@ -454,7 +456,12 @@ class ReelsBloc extends Bloc<ReelsEvent, ReelsState> {
       },
       (categories) {
         _categories = categories;
-        emit(ReelsWithCategories(categories: categories));
+        final currentState = state;
+        if (currentState is ReelsLoaded) {
+          emit(currentState.copyWith(categories: categories));
+        } else {
+          emit(ReelsWithCategories(categories: categories));
+        }
       },
     );
   }
